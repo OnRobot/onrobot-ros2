@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<robot name="onrobot_3fg15">
+
+  <!-- Base to finger base -->
+
+  <disable_collisions
+    link1="base_link"
+    link2="right_finger_base_link"
+    reason="Adjacent"/>  
+
+  <disable_collisions
+    link1="base_link"
+    link2="left_finger_base_link"
+    reason="Adjacent"/>  
+
+  <disable_collisions
+    link1="base_link"
+    link2="middle_finger_base_link"
+    reason="Adjacent"/>  
+    
+  <!-- Finger base to fingertips -->
+
+  <disable_collisions
+    link1="left_finger_base_link"
+    link2="left_fingertip_link"
+    reason="Adjacent"/>
+
+  <disable_collisions
+    link1="right_finger_base_link"
+    link2="right_fingertip_link"
+    reason="Adjacent"/>
+
+  <disable_collisions
+    link1="middle_finger_base_link"
+    link2="middle_fingertip_link"
+    reason="Adjacent"/>
+
+</robot>

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "qualification_id": "2fg14-conventional-hil-isaac-sim-6.0.1-2026-09-02",
+  "model": "2fg14",
+  "asset_revision": "3.0",
+  "fidelity": "hardware-in-the-loop",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy",
+    "rmw_implementation": "rmw_fastrtps_cpp"
+  },
+  "source_artifact": {
+    "filename": "2fg14_conventional_hil_mikael.json",
+    "sha256": "d86bddc3b1005c6ba29f9147cc47e47c77754f2712811b5d1c85b6c1288f9abb",
+    "started_at": "2026-09-02T09:47:25.065667+00:00",
+    "finished_at": "2026-09-02T09:48:37.661817+00:00"
+  },
+  "status": "passed",
+  "control": {
+    "interface": "control_msgs/action/ParallelGripperCommand",
+    "mode": "conventional",
+    "command_authority": "ros2-control-standard-action",
+    "hardware_owner": "external-real-backend-bringup",
+    "hardware_motion_enabled": true
+  },
+  "scope": {
+    "task_joint": "grip_stroke",
+    "physical_joint": "finger_stroke",
+    "finger_profile": "2fg14_standard",
+    "finger_profile_revision": "2",
+    "mapping_source": "device-measured",
+    "maximum_external_aperture_excursion_m": 0.01,
+    "maximum_effort_n": 10.0,
+    "shadow_tolerance_m": 0.001
+  },
+  "tests": {
+    "bounded_hardware_motion": "passed",
+    "task_to_mechanism_delta": "passed",
+    "restore_valid_initial_aperture": "passed",
+    "hardware_to_usd_shadow_fidelity": "passed",
+    "hardware_health_stable": "passed"
+  },
+  "measurements": {
+    "initial_task_aperture_m": 0.1008,
+    "target_task_aperture_m": 0.0908,
+    "measured_task_aperture_m": 0.0907,
+    "task_delta_m": -0.0101,
+    "initial_physical_position_m": 0.02241,
+    "measured_physical_position_m": 0.017385,
+    "one_jaw_physical_delta_m": -0.005025,
+    "task_to_mechanism_delta_error_m": 0.00005,
+    "restore_target_task_aperture_m": 0.1008,
+    "restored_task_aperture_m": 0.1005,
+    "restoration_error_m": 0.0003,
+    "maximum_hardware_to_usd_shadow_error_m": 9.065866460322702e-10,
+    "maximum_usd_mimic_error_m": 0.0
+  },
+  "hardware_health_delta": {
+    "sample_sequence": 402,
+    "successful_hardware_cycles": 402,
+    "failed_hardware_cycles": 0,
+    "missed_deadlines": 0,
+    "watchdog_stops": 0,
+    "reconnects": 0
+  },
+  "timing_observation": {
+    "maximum_hardware_cycle_duration_s": 0.015872942,
+    "maximum_reported_sample_age_s": 0.019126605,
+    "maximum_typed_state_callback_interval_s": 6.17533512099908,
+    "typed_state_samples": 26
+  },
+  "operator_observation": {
+    "rviz_isaac_hardware_motion_agreement": "passed"
+  },
+  "asset_files_sha256": {
+    "onrobot_2fg14.usda": "6c7744acafc7fc117c271cc7f87c37ec78eb44244920b67b12f708c9ef707c04",
+    "payloads/Physics/mujoco.usda": "47c3c89baeca398af80190cc13d000baaa848b2c18c34f3d28984d70894bf7b8",
+    "payloads/Physics/physics.usda": "ac2a9e132d2f8088486ce8cf22d216fa2cf75b7a3c4ceca79422403158059575",
+    "payloads/Physics/physx.usda": "8a23279e0eacb1a65a3f4cdff0eaf53558a215d52c018ee97c20347264c7b597",
+    "payloads/base.usda": "035a3bb249f073d9a17a2c1c2d4723bf204879e92f79d6bc6e86b959221ac929",
+    "payloads/geometries.usd": "77f13f5c7c9b8aa808eecb28e28df947ff18d49a14103ad088ea871f80d898b2",
+    "payloads/instances.usda": "332460aa5abd678066ab80578478e01a5d0a796ba86329d512f4c572871d243d",
+    "payloads/materials.usda": "47752b492bc92bd07e22c2a110035dbf2c867916fc9e1d4845a02ab13aadc356",
+    "payloads/robot.usda": "a320d51710048b31c052394e6bda9594dfb22ffa42f271dceaa4a9b975fdce9f"
+  },
+  "limitations": [
+    "This qualification covers conventional bounded motion only; realtime physical position motion remains pending firmware-identity qualification.",
+    "The long local callback interval records Isaac CPU contention; device-reported sample age remained below the declared freshness limit.",
+    "Drive stiffness, damping, and simulated force fidelity remain unqualified.",
+    "This evidence applies only to the declared asset, finger profile, hardware interface, and runtime revisions.",
+    "This is a functional integration qualification, not a safety-rated motion test."
+  ]
+}

@@ -1,0 +1,21 @@
+/**/n02_controller_manager:
+  ros__parameters:
+    update_rate: 500
+
+/**/gripper_controller:
+  ros__parameters:
+    joint: grip_stroke
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]
+    max_effort_interface: grip_stroke/effort
+    max_effort: 100.0
+    goal_tolerance: 0.001
+    allow_stalling: true
+    stall_velocity_threshold: 0.0001
+    stall_timeout: 2.0
+
+/**/realtime_controller:
+  ros__parameters:
+    joint: grip_stroke
+    mechanism_joint: finger_stroke
+    command_timeout_ms: 100

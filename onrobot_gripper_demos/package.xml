@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>onrobot_gripper_demos</name>
+  <version>0.1.0</version>
+  <description>Unified RViz showcase entry point for OnRobot grippers.</description>
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>forward_command_controller</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>onrobot_2fg7</exec_depend>
+  <exec_depend>onrobot_2fg14</exec_depend>
+  <exec_depend>onrobot_3fg15</exec_depend>
+  <exec_depend>onrobot_3fg25</exec_depend>
+  <exec_depend>onrobot_gripper_bringup</exec_depend>
+  <exec_depend>onrobot_gripper_hardware</exec_depend>
+  <exec_depend>onrobot_gripper_msgs</exec_depend>
+  <exec_depend>onrobot_gripper_rviz_plugins</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>onrobot_rg2</exec_depend>
+  <exec_depend>onrobot_rg6</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosbag2_transport</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>state_interfaces_broadcaster</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

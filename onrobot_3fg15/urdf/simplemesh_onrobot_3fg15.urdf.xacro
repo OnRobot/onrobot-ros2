@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<robot name="onrobot_3fg15" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ================= Xacro arguments ================= -->
+
+  <xacro:arg name="mesh_path" default="package://onrobot_3fg15/meshes"/>
+
+  <!-- silicone, aluminum or knurled -->
+  <xacro:arg name="fingertip_material" default="13_silicone"/>
+
+  <!-- 1 = 9 mm backward, 2 = default position, 3 = 9 mm foward -->
+  <xacro:arg name="fingertip_position" default="2"/>
+
+  <!-- Joint properties -->
+  <xacro:arg name="finger_effort" default="6.23"/>
+  <xacro:arg name="finger_velocity" default="1.4"/>
+
+  <!-- ================= Fingertip material and collision properties ================= -->
+
+  <xacro:if value="${'$(arg fingertip_material)' == '13_silicone'}">
+    <xacro:property
+      name="fingertip_mesh"
+      value="Ø13_silicone_fingertip_link.dae"/>
+    <xacro:property
+      name="fingertip_collision_xyz"
+      value="0.0445 0 -0.041"/>
+    <xacro:property
+      name="fingertip_collision_radius"
+      value="0.00675"/>
+    <xacro:property
+      name="fingertip_collision_length"
+      value="0.03"/>
+    <xacro:property
+      name="fingertip_mu"
+      value="0.4"/>
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == '165_silicone'}">
+    <xacro:property
+      name="fingertip_mesh"
+      value="Ø165_silicone_fingertip_link.dae"/>
+    <xacro:property
+      name="fingertip_collision_xyz"
+      value="0.0445 0 -0.0425"/>
+    <xacro:property
+      name="fingertip_collision_radius"
+      value="0.00825"/>
+    <xacro:property
+      name="fingertip_collision_length"
+      value="0.027"/>
+    <xacro:property
+      name="fingertip_mu"
+      value="0.4"/>
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == '13_steel'}">
+    <xacro:property
+      name="fingertip_mesh"
+      value="Ø13_steel_fingertip_link.dae"/>
+    <xacro:property
+      name="fingertip_collision_xyz"
+      value="0.0445 0 -0.0415"/>
+    <xacro:property
+      name="fingertip_collision_radius"
+      value="0.0065"/>
+    <xacro:property
+      name="fingertip_collision_length"
+      value="0.025"/>
+    <xacro:property
+      name="fingertip_mu"
+      value="0.15"/>
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == '10_steel'}">
+    <xacro:property
+      name="fingertip_mesh"
+      value="Ø10_steel_fingertip_link.dae"/>
+    <xacro:property
+      name="fingertip_collision_xyz"
+      value="0.0445 0 -0.0415"/>
+    <xacro:property
+      name="fingertip_collision_radius"
+      value="0.005"/>
+    <xacro:property
+      name="fingertip_collision_length"
+      value="0.025"/>
+    <xacro:property
+      name="fingertip_mu"
+      value="0.15"/>
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == 'knurled'}">
+    <xacro:property
+      name="fingertip_mesh"
+      value="Ø13_steel_fingertip_link.dae"/>
+    <xacro:property
+      name="fingertip_collision_xyz"
+      value="0.0445 0 -0.0415"/>
+    <xacro:property
+      name="fingertip_collision_radius"
+      value="0.0065"/>
+    <xacro:property
+      name="fingertip_collision_length"
+      value="0.025"/>
+    <xacro:property
+      name="fingertip_mu"
+      value="0.6"/>
+  </xacro:if>
+
+  <!-- ================= Fingertip position ================= -->
+
+  <!-- Position 1: 9 mm backwards, joint range -2 degrees to 150 degrees -->
+  <xacro:if value="${'$(arg fingertip_position)' == '1'}">
+    <xacro:property
+      name="fingertip_x_offset"
+      value="-0.009"/>
+    <xacro:property
+      name="finger_lower_limit"
+      value="-0.03490658503988659"/>
+    <xacro:property
+      name="finger_upper_limit"
+      value="2.79253"/>
+  </xacro:if>
+
+  <!-- Position 2: current position and current joint range -->
+  <xacro:if value="${'$(arg fingertip_position)' == '2'}">
+    <xacro:property
+      name="fingertip_x_offset"
+      value="0"/>
+    <xacro:property
+      name="finger_lower_limit"
+      value="0"/>
+    <xacro:property
+      name="finger_upper_limit"
+      value="2.79253"/>
+  </xacro:if>
+
+  <!-- Position 3: 9 mm forwards, joint range 2 degrees to 150 degrees -->
+  <xacro:if value="${'$(arg fingertip_position)' == '3'}">
+    <xacro:property
+      name="fingertip_x_offset"
+      value="0.009"/>
+    <xacro:property
+      name="finger_lower_limit"
+      value="0.03490658503988659"/>
+    <xacro:property
+      name="finger_upper_limit"
+      value="2.79253"/>
+  </xacro:if>
+
+  <!-- ================= Shared finger base macro ================= -->
+
+  <xacro:macro name="finger_base" params="side">
+    
+    <link name="${side}_finger_base_link">
+
+      <inertial>
+        <origin
+          xyz="1.9356E-09 -3.2268E-07 0.0036526"
+          rpy="0 0 0"/>
+        <mass value="0.073984"/>
+        <inertia
+          ixx="7.7599E-06"
+          ixy="1.0265E-11"
+          ixz="1.4086E-14"
+          iyy="7.4402E-06"
+          iyz="-1.0881E-15"
+          izz="1.4085E-05"/>
+      </inertial>
+
+      <visual>
+        <origin
+          xyz="0 0 0.008"
+          rpy="0 0 ${pi}"/>
+        <geometry>
+          <mesh filename="$(arg mesh_path)/finger_base_link.dae"/>
+        </geometry>
+      </visual>
+
+    </link>
+  
+  </xacro:macro>
+
+  <!-- ================= Shared fingertip macro ================= -->
+
+  <xacro:macro name="fingertip" params="side">
+
+    <link name="${side}_fingertip_link">
+
+      <inertial>
+        <origin
+        xyz="0.0291 -1.5409E-06 -0.021298"
+        rpy="0 0 0" />
+      <mass
+        value="0.055374" />
+      <inertia
+        ixx="3.6915E-06"
+        ixy="-1.5645E-09"
+        ixz="3.409E-06"
+        iyy="1.1731E-05"
+        iyz="5.0834E-10"
+        izz="9.2854E-06" />
+      </inertial>
+
+      <visual>
+        <origin
+          xyz="0 0 0"
+          rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="$(arg mesh_path)/${fingertip_mesh}"/>
+        </geometry>
+      </visual>
+
+      <collision>
+        <origin
+          xyz="0.03 0 -0.012"
+          rpy="0 0.54 0"/>
+        <geometry>
+          <box size="0.04 0.01 0.007"/>
+        </geometry>
+      </collision>
+
+      <collision>
+        <origin 
+          xyz="${fingertip_collision_xyz}"
+          rpy="0.0 0.0 0.0" />
+        <geometry>
+          <cylinder 
+            radius="${fingertip_collision_radius}" 
+            length="${fingertip_collision_length}" />
+        </geometry>
+      </collision>
+
+    </link>
+
+    <joint name="${side}_fingertip_joint" type="fixed">
+      <origin
+        xyz="${fingertip_x_offset} 0 0"
+        rpy="0 0 0"/>
+      <parent link="${side}_finger_base_link"/>
+      <child link="${side}_fingertip_link"/>
+    </joint>
+
+    <gazebo reference="${side}_fingertip_link">
+      <mu1>${fingertip_mu}</mu1>
+      <mu2>${fingertip_mu}</mu2>
+    </gazebo>
+
+  </xacro:macro>
+
+  <!-- ================= Base link ================= -->
+
+  <link name="base_link">
+
+    <inertial>
+      <origin
+        xyz="-0.00035875 -0.0001775 0.07158"
+        rpy="0 0 0"/>
+      <mass value="0.68599"/>
+      <inertia
+        ixx="0.00073145"
+        ixy="-2.0611E-08"
+        ixz="3.58E-07"
+        iyy="0.000737"
+        iyz="-2.2044E-07"
+        izz="0.00076009"/>
+    </inertial>
+
+    <visual>
+      <origin
+        xyz="0 0 0.0138"
+        rpy="${pi} 0 -${pi / 2}"/>
+      <geometry>
+        <mesh filename="$(arg mesh_path)/base_link.dae"/>
+      </geometry>
+    </visual>
+      
+    <collision>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0355" length="0.10"/>
+      </geometry>
+    </collision>
+
+    <collision>
+      <origin xyz="0 0 0.102" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0551" length="0.02"/>
+      </geometry>
+    </collision>
+
+  </link>
+
+  <!-- ================= Left finger base ================= -->
+
+  <xacro:finger_base side="left"/>
+
+  <joint name="finger_angle" type="revolute">
+
+    <origin
+      xyz="-0.025981 -0.015 0.1143"
+      rpy="3.1416 0 0.22689"/>
+    <parent link="base_link"/>
+    <child link="left_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+      
+  </joint>
+
+  <!-- ================= Left fingertip ================= -->
+
+  <xacro:fingertip side="left"/>
+
+  <!-- ================= Right finger base ================= -->
+
+  <xacro:finger_base side="right"/>
+
+  <joint name="right_finger_base_joint" type="revolute">
+
+    <origin
+      xyz="0.025981 -0.015 0.1143"
+      rpy="3.1416 0 2.3213"/>
+    <parent link="base_link"/>
+    <child link="right_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+
+  </joint>
+
+  <!-- ================= Right fingertip ================= -->
+
+  <xacro:fingertip side="right"/>
+
+  <!-- ================= Middle finger base ================= -->
+
+  <xacro:finger_base side="middle"/>
+
+  <joint name="middle_finger_base_joint" type="revolute">
+    <origin
+      xyz="0 0.03 0.1143"
+      rpy="3.1416 0 -1.8675"/>
+    <parent link="base_link"/>
+    <child link="middle_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+
+  </joint>
+
+  <!-- ================= Middle fingertip ================= -->
+
+  <xacro:fingertip side="middle"/>
+
+</robot>

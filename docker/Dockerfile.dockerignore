@@ -1,0 +1,24 @@
+# Only the public customer-bundle inputs enter the build context.
+**
+!README.md
+!SHA256SUMS
+!BUNDLE_MANIFEST.json
+!tool-api-debs/
+!tool-api-debs/*.deb
+!src/
+!src/onrobot-ros2/
+!src/onrobot-ros2/**
+**/.git
+**/.git/**
+**/internal
+**/internal/**
+**/review
+**/review/**
+**/firmware
+**/firmware/**
+**/credentials
+**/credentials/**
+**/demos-with-different-robot-vendors
+**/demos-with-different-robot-vendors/**
+**/__pycache__
+**/*.pyc

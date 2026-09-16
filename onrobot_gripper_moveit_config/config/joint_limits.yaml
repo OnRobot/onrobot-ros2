@@ -1,0 +1,3 @@
+# moveit_gripper.launch.py supplies physical-joint position limits from the
+# selected stock geometry profile and model-specific SI timing limits.
+joint_limits: {}

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "model": "2fg7",
+  "asset_revision": "3.0",
+  "fidelity_target": "dynamic-contact",
+  "reference_fingers": {
+    "configuration": "standard-silicone-outwards",
+    "static_friction": 0.4,
+    "dynamic_friction": 0.35,
+    "restitution": 0.0,
+    "qualification_scope": "OnRobot-supplied reference fingers only"
+  },
+  "reference_geometry_m": {
+    "base_collision_max_z": 0.1143,
+    "contact_face_inner_x_at_zero": 0.0165,
+    "fingertip_half_width_y": 0.017,
+    "contact_face_z_range": [
+      0.122,
+      0.157
+    ],
+    "maximum_center_offset_xy": 0.001,
+    "minimum_base_clearance": 0.005,
+    "minimum_release_clearance": 0.005,
+    "minimum_grasp_interference": 0.005,
+    "minimum_lateral_overlap": 0.01,
+    "minimum_contact_face_z_overlap": 0.025,
+    "maximum_support_top_gap": 0.0005,
+    "minimum_support_base_clearance": 0.005,
+    "minimum_support_finger_clearance": 0.005
+  },
+  "physics": {
+    "backend": "physx",
+    "physics_dt_s": 0.004166666666666667,
+    "solver_type": "TGS",
+    "enable_ccd": true,
+    "enable_stabilization": true,
+    "trials": 5
+  },
+  "objects": [
+    {
+      "id": "external_pinch_block_v1",
+      "grasp_kind": "external-pinch",
+      "description": "Solid block held between the supplied outward-facing fingers.",
+      "center_m": [
+        0.0,
+        0.0,
+        0.14
+      ],
+      "size_m": [
+        0.05,
+        0.05,
+        0.03
+      ],
+      "mass_kg": 0.02,
+      "support_center_m": [
+        0.0,
+        0.0,
+        0.1225
+      ],
+      "support_size_m": [
+        0.015,
+        0.03,
+        0.005
+      ],
+      "support_catch_gap_m": 0.001,
+      "material": {
+        "static_friction": 0.5,
+        "dynamic_friction": 0.4,
+        "restitution": 0.0
+      },
+      "grasp_target_m": 0.0,
+      "release_target_m": 0.019,
+      "approach_closing_step_m": 0.0005,
+      "contact_approach_margin_m": 0.002,
+      "contact_closing_step_m": 0.000025,
+      "preload_closing_step_m": 0.00005,
+      "minimum_grasp_target_error_m": 0.0005,
+      "contact_force_min_n": 0.01,
+      "contact_force_max_n": 500.0,
+      "minimum_bilateral_contact_fraction": 0.9,
+      "minimum_preload_contact_fraction": 0.9,
+      "maximum_hold_drop_m": 0.003,
+      "maximum_hold_lateral_drift_m": 0.003,
+      "maximum_hold_rotation_rad": 0.2617993877991494,
+      "maximum_object_speed_m_s": 2.0,
+      "maximum_object_angular_speed_rad_s": 20.0,
+      "maximum_object_displacement_m": 0.1,
+      "release_contact_timeout_steps": 240
+    }
+  ]
+}

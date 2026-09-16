@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_gripper_description</name>
+  <version>0.1.0</version>
+  <description>Composable descriptions and declarative finger profiles for OnRobot grippers.</description>
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>openssl</build_depend>
+  <build_depend>yaml_cpp_vendor</build_depend>
+  <exec_depend>openssl</exec_depend>
+  <exec_depend>yaml_cpp_vendor</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>onrobot_2fg7</test_depend>
+  <test_depend>onrobot_2fg14</test_depend>
+  <test_depend>onrobot_rg2</test_depend>
+  <test_depend>onrobot_rg6</test_depend>
+  <test_depend>python3-yaml</test_depend>
+  <test_depend>python3-numpy</test_depend>
+  <test_depend>xacro</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

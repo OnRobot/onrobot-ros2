@@ -1,0 +1,16 @@
+schema_version: 1
+name: rg2_standard
+revision: 1
+compatible_models: [rg2]
+task_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.0
+  maximum: 0.110
+  mapping_source: device_compensated
+mechanism_coordinate:
+  dimension: angular
+  unit: rad
+  minimum: 0.0
+  maximum: 1.22277767395
+attachment_frames: [left_finger_mount, right_finger_mount]

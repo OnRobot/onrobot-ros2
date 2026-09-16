@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "model": "rg2",
+  "asset_revision": "3.0",
+  "asset_entrypoint": "assets/rg2/onrobot_rg2.usda",
+  "runtime": {
+    "tested_isaac_sim_versions": [
+      "6.0.1"
+    ],
+    "version_policy": "feature-gated",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy",
+    "runtime_validation": "kinematic-automated-passed",
+    "fidelity": "dynamic-contact"
+  },
+  "usd": {
+    "default_prim": "onrobot_rg2",
+    "meters_per_unit": 1,
+    "articulation_root": "/onrobot_rg2",
+    "actuated_joint": "finger_joint",
+    "coordinate_dimension": "angular",
+    "coordinate_unit": "rad",
+    "lower_limit": 0,
+    "upper_limit": 1.22277767395,
+    "maximum_velocity": 1.1754792512181809,
+    "maximum_drive_torque_nm": 4.5,
+    "mimic_joints": [
+      {
+        "name": "right_finger_cover_arm_joint",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "right_finger_cover_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "right_finger_base_joint",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "left_outer_proximal_finger_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "left_finger_cover_arm_joint",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "left_finger_cover_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "left_finger_base_joint",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "right_inner_proximal_finger_joint",
+        "axis": "rotX",
+        "gearing": -1
+      },
+      {
+        "name": "left_inner_proximal_finger_joint",
+        "axis": "rotX",
+        "gearing": -1
+      }
+    ]
+  },
+  "ros": {
+    "task_joint": "grip_stroke",
+    "mechanism_joint": "finger_joint",
+    "task_minimum_m": 0,
+    "task_maximum_m": 0.11,
+    "mechanism_minimum_rad": 0,
+    "mechanism_maximum_rad": 1.22277767395,
+    "mapping_source": "device_compensated"
+  },
+  "custom_fingers": {
+    "right_anchor": "/onrobot_rg2/Geometry/right_finger_base_link",
+    "left_anchor": "/onrobot_rg2/Geometry/left_finger_base_link",
+    "right_fixed_joint": "/onrobot_rg2/Physics/right_finger_tip_joint",
+    "left_fixed_joint": "/onrobot_rg2/Physics/left_finger_tip_joint",
+    "geometry_and_physics_owner": "user"
+  },
+  "drive_tuning": {
+    "maximum_drive_torque_nm": 4.5,
+    "stiffness": 1.74532925,
+    "damping": 0.1396263402,
+    "source": "repeatable table pickup and pendulum retention with a loaded Jacobian force-balance check",
+    "status": "provisional",
+    "qualified": false,
+    "stiffness_si": 100,
+    "damping_si": 8,
+    "angular_gain_units": "USD per degree; SI per radian",
+    "armature_kg_m2": 0.29435,
+    "armature_status": "firmware motor-model inertia reflected through gearing; not unit-identified",
+    "motor_inertia_reference_kg_m2": 0.0000035,
+    "gear_ratio_reference": 290,
+    "velocity_basis": "67.35 deg/s firmware-guide velocity-mode limit; conventional peaks may differ"
+  },
+  "mimic_constraint_tuning": {
+    "natural_frequency_hz": 5000,
+    "damping_ratio": 1,
+    "source": "critically damped linkage with bounded drive gains",
+    "status": "workpiece-and-tip-contact-tested-provisional",
+    "qualified": false
+  },
+  "collision_model": {
+    "default_variant": "physx_parallel_grip",
+    "tip_contact_test_variant": "physx_parallel_grip_tip_contact",
+    "unconstrained_articulation_test_variant": "physx_parallel_grip",
+    "default_self_collision": false,
+    "self_collision": true,
+    "fingertip_static_friction": 0.6,
+    "fingertip_dynamic_friction": 0.5,
+    "fingertip_restitution": 0,
+    "tip_to_tip_contact": true,
+    "hard_contact_stability": "passed-isaac-sim-6.0.1",
+    "fingertip_friction_combine_mode": "average",
+    "material_basis": "provisional dry rubber/metal pair; application-dependent"
+  },
+  "realtime": {
+    "firmware": "1.0.10",
+    "guide": "RG2 and RG6 Realtime Control Integration Guide v1.1",
+    "position": "hardware-api-passed",
+    "velocity": "hardware-api-passed",
+    "watchdog": "hardware-api-passed",
+    "endpoint_hold": "hardware-api-passed"
+  },
+  "hardware_in_loop": {
+    "status": "runtime-pending-current-asset",
+    "control": "conventional-and-realtime-position",
+    "realtime_position_motion": "runtime-pending-current-asset",
+    "reason": "The RG2 asset physics layers changed after the retained conventional and realtime-position HIL runs.",
+    "required_rerun": [
+      "conventional",
+      "realtime-position"
+    ]
+  },
+  "qualification": {
+    "qualified_at": "2026-09-04",
+    "articulation_endpoints": "automated-passed",
+    "automated_kinematic_regression": "automated-passed",
+    "kinematic_evidence": "evidence/rg2_kinematic_isaac_sim_6_0_1_2026-09-03.json",
+    "kinematic_source_evidence_sha256": "ac5207b5e7f63bc62cb88998744fe934d244133b53cac3af7f967f962ff0d53e",
+    "physical_motion_showcase": "automated-passed",
+    "physical_motion_proof": {
+      "isaac_sim_version": "6.0.1",
+      "payload_kg": 2,
+      "physics_hz": 480,
+      "hold_control": "position",
+      "external_forces_every_iteration": true,
+      "replay": false,
+      "asset_manifest_sha256": "deea3ecfe3c76522330a978a75b728162d6789ad443fbb38ed57053912b18f14",
+      "config_sha256": "e4a308e1a4695a6dd123b9811608e0fa15b90be5690dcbacf688c35ecc7fd8b3",
+      "runner_sha256": "11d393c92e907babbf5c3236756c210886c9fe7d4e6a5c192326b9effef084a8",
+      "runtime_manifest_sha256": "2037c27810f59c6835aaa7c8e8211f228b3aac8e0acede4f60ac432479e044c0",
+      "report_sha256": "9c7d161bb2e40b15b7839c3c36d99484d39bb1c14828aa0a590a65821b64c9b3",
+      "scope": "supported acquisition followed by actuated diagonal lift/shake; not table pickup/setdown or hardware-force calibration"
+    },
+    "robot_free_workpiece": {
+      "status": "passed",
+      "isaac_sim_version": "6.0.1",
+      "cube_size_m": 0.062,
+      "payload_kg": 0.712,
+      "pickup_setdown_cycles": 3,
+      "swing_amplitude_deg": 20,
+      "swing_frequency_hz": 1.5,
+      "swing_cycles": 5,
+      "object_static_friction": 0.6,
+      "object_dynamic_friction": 0.5,
+      "pad_material_override": false,
+      "asset_manifest_sha256": "deea3ecfe3c76522330a978a75b728162d6789ad443fbb38ed57053912b18f14",
+      "runner_sha256": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+      "runtime_script_files_sha256": {
+        "grip_drive_control.py": "b216d514568422648a31aef5a9b9b897b0f684e71a22c314b90b3ab307ce3061",
+        "isaac_model_contract.py": "244e370e9adf6e0232859138f54ca2ab6278c146341ea1edb6106bb20cd74d19",
+        "isaac_runtime_compat.py": "bc2e7fb2f34dd362b58b6176083ba18648853ab5194ec966e2a0bc998adc7bce",
+        "run_payload_retention_test.py": "9ed52f3e83b593bf2ea63f6dcbdce4a0c273897ecd45389cf904ac14b1bd9075",
+        "run_workpiece_showcase.py": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+        "showcase_branding.py": "6d8c9be74950105ae1198780e31366b45e53e20f2353e5377ac42fcd72a534a9"
+      },
+      "report_sha256": "4a2f98600a392435f3f91b8e6a4b764b3ef3b3b706d0f98bc6020fb01c8439c6",
+      "physics_hz": 480,
+      "external_forces_every_iteration": true,
+      "hold_control": "position",
+      "scope": "table pickup, pendulum, setdown and release; not rated-payload or force calibration"
+    },
+    "mimic_kinematics": "hard-contact-automated-passed",
+    "hard_fingertip_contact": "passed-isaac-sim-6.0.1",
+    "ros_conventional_control": "hardware-motion-passed",
+    "ros_realtime_control": "hardware-motion-passed",
+    "rviz_isaac_motion_agreement": "runtime-pending-current-asset",
+    "conventional_hardware_in_loop": "runtime-pending-current-asset",
+    "realtime_hardware_in_loop": "runtime-pending-current-asset"
+  },
+  "layers": {
+    "assets/rg2/onrobot_rg2.usda": "958d56d8499becaefba36e0f9f4b753d608e0735999e4337abf064c4dce1457c",
+    "assets/rg2/payloads/base.usda": "004df9626003605be29e4f547373590bbcbd863ca1c3acbab4bbfde57fbe3025",
+    "assets/rg2/payloads/geometries.usd": "579ab7c58699ffb120986ea3733399949a64eab7b95a63711fc60a363cf791be",
+    "assets/rg2/payloads/instances.usda": "8fb6d4407d1db48eac822c4ad4805f2e0a33f571a765a5fc3d642beebeb31d44",
+    "assets/rg2/payloads/materials.usda": "8cf124dc7b94fdcc4cc49b223dc84c3f955d69df9181b907e356796fc55bfdde",
+    "assets/rg2/payloads/robot.usda": "158927d81f545908dfa5492479d1a03f162ec39e8b6dba94fa653aa59200ee33",
+    "assets/rg2/payloads/Physics/physics.usda": "cf9d3681cba6b52a90f30dd44ba35bdb326a54ea5fe3a4b6542081abbd701bba",
+    "assets/rg2/payloads/Physics/physx.usda": "16f860a6d2124cbd8d3cb1c6c47dedddda9433ad3d150f3e9c173a57fb70b0ba",
+    "assets/rg2/payloads/Physics/physx_parallel_grip.usda": "16f860a6d2124cbd8d3cb1c6c47dedddda9433ad3d150f3e9c173a57fb70b0ba",
+    "assets/rg2/payloads/Physics/physx_parallel_grip_tip_contact.usda": "1455381a036c2a741dd45e22a38523803ca2bb5725756e162cfe9d898bb7a607"
+  }
+}

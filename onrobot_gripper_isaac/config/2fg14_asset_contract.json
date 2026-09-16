@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "model": "2fg14",
+  "asset_revision": "3.0",
+  "asset_entrypoint": "assets/2fg14/onrobot_2fg14.usda",
+  "asset_structure": {
+    "version": "3.0",
+    "generation": "urdf-import-plus-asset-transformer",
+    "profile": "Isaac Sim Structure",
+    "profile_version": "1.0",
+    "entrypoint_format": "usda",
+    "geometry_format": "usdc-crate",
+    "status": "runtime-validated"
+  },
+  "runtime": {
+    "tested_isaac_sim_versions": [
+      "6.0.1"
+    ],
+    "version_policy": "feature-gated",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy",
+    "runtime_validation": "kinematic-automated-passed",
+    "fidelity": "kinematic"
+  },
+  "usd": {
+    "default_prim": "onrobot_2fg14",
+    "meters_per_unit": 1,
+    "articulation_root": "/onrobot_2fg14/Physics/root_joint",
+    "actuated_joint": "finger_stroke",
+    "follower_joint": "left_finger_base_joint",
+    "lower_limit_m": 0,
+    "upper_limit_m": 0.025,
+    "mimic_multiplier": 1,
+    "maximum_velocity_m_s": 0.45,
+    "maximum_drive_force_n": 280
+  },
+  "ros": {
+    "task_joint": "grip_stroke",
+    "mechanism_joint": "finger_stroke",
+    "task_minimum_m": 0,
+    "task_maximum_m": 0.14,
+    "mechanism_minimum_m": 0.001,
+    "mechanism_maximum_m": 0.051,
+    "mapping_source": "device_measured"
+  },
+  "reference_fingers": {
+    "profile": "2fg14_standard",
+    "material": "NBR",
+    "orientation": "outwards",
+    "friction_coefficient": 0.6,
+    "dynamic_friction_coefficient": 0.5,
+    "friction_combine_mode": "average",
+    "contact_qualification": "runtime-pending-current-asset",
+    "collision_model": {
+      "source": "standard-fingertip-primitive-collision",
+      "disabled_imported_mesh": "fingertip_link_1",
+      "upper_contact": {
+        "center_m": [
+          0.029435,
+          0,
+          0.0125
+        ],
+        "size_m": [
+          0.0453,
+          0.045,
+          0.006
+        ]
+      },
+      "lower_finger": {
+        "center_m": [
+          0.00335,
+          0,
+          0.002403
+        ],
+        "size_m": [
+          0.0067,
+          0.045,
+          0.0258
+        ]
+      }
+    }
+  },
+  "custom_fingers": {
+    "right_anchor": "/onrobot_2fg14/Geometry/right_finger_base_link",
+    "left_anchor": "/onrobot_2fg14/Geometry/left_finger_base_link",
+    "right_fixed_joint": "/onrobot_2fg14/Physics/right_fingertip_joint",
+    "left_fixed_joint": "/onrobot_2fg14/Physics/left_fingertip_joint",
+    "geometry_and_physics_owner": "user"
+  },
+  "drive_tuning": {
+    "stiffness": 40000,
+    "damping": 900,
+    "armature_kg": 5.0625,
+    "dynamics_basis": "Provisional joint-space conditioning: 2FG7's assumed 1 kg scaled by firmware gear ratio squared (16 / (64 / 9))^2. Shared rotor inertia is not measured. Damping approximates 2 sqrt(stiffness * armature); firmware control-loop dynamics are separate.",
+    "physx_single_drive_force_n": 560,
+    "nominal_grip_force_reference_n": 280,
+    "force_mapping_basis": "For symmetric opposed translation, leader generalized force equals the sum of jaw normals. Nominal rating-to-jaw mapping remains uncalibrated; the authored ceiling is not measured grip force.",
+    "qualified": false,
+    "status": "provisional-until-step-response-tuning"
+  },
+  "force_model": {
+    "public_state": "unavailable",
+    "physx_contact_observation": "unqualified",
+    "maximum_drive_force_source": "ros-description-effort-limit",
+    "maximum_customer_realtime_grip_force_n": 196,
+    "realtime_force_limit_fraction_of_conventional": 0.7,
+    "realtime_force_limit_source": "firmware-integration-requirement",
+    "todo": "Calibrate a public simulated-force mapping from measured hardware and PhysX contact evidence."
+  },
+  "realtime": {
+    "position": "runtime-passed",
+    "velocity": "runtime-passed",
+    "watchdog": "runtime-passed",
+    "force": "unavailable-pending-calibration"
+  },
+  "dynamic_contact": {
+    "status": "runtime-pending",
+    "reference_object_config": "config/2fg14_dynamic_contact_reference_objects.json",
+    "reference_object_config_sha256": "8d25b690ff17f39b88d3a5fffd84023a1467c00b4f4b72145e9fe6bf48f1f704",
+    "test_harness": "run_2fg_dynamic_contact_test.py",
+    "reference_fingers": "standard-nbr-outwards",
+    "object_set": [
+      "external_pinch_block_v1"
+    ],
+    "reason": "The articulation drive was retuned after the retained Isaac Sim 6.0.1 contact run.",
+    "required_rerun": "dynamic-contact-current-asset"
+  },
+  "hardware_in_loop": {
+    "status": "runtime-pending-current-asset",
+    "control": "conventional",
+    "realtime_position_motion": "pending-firmware-identity-qualification",
+    "reason": "The asset physics layers changed after the retained conventional HIL run.",
+    "required_rerun": [
+      "conventional"
+    ]
+  },
+  "qualification": {
+    "qualified_at": "2026-09-02",
+    "articulation_endpoints": "automated-passed",
+    "articulation_source_evidence_sha256": "75efcbc04e0f885b2c6d2d969fe3d57c1b322ec94ea8384f489fe03a13d91280",
+    "ros_conventional_control": "automated-passed",
+    "ros_realtime_control": "automated-passed",
+    "rviz_isaac_motion_agreement": "runtime-pending-current-asset",
+    "conventional_hardware_in_loop": "runtime-pending-current-asset",
+    "automated_kinematic_regression": "automated-passed",
+    "kinematic_evidence": "evidence/2fg14_kinematic_isaac_sim_6_0_1_2026-09-01.json",
+    "kinematic_source_evidence_sha256": "d608a4138a6a682f9f114f0048b54ff57755dd220252b9d927964d4924305656",
+    "physical_motion_showcase": "automated-passed",
+    "physical_motion_proof": {
+      "isaac_sim_version": "6.0.1",
+      "payload_kg": 14,
+      "physics_hz": 480,
+      "hold_control": "preload-position",
+      "external_forces_every_iteration": true,
+      "replay": false,
+      "asset_manifest_sha256": "f1bf85b22312e59fd9e8ebc38b0c53dbba1afb8aa689169b4b05fb0d46e80f38",
+      "config_sha256": "e4a308e1a4695a6dd123b9811608e0fa15b90be5690dcbacf688c35ecc7fd8b3",
+      "runner_sha256": "11d393c92e907babbf5c3236756c210886c9fe7d4e6a5c192326b9effef084a8",
+      "runtime_manifest_sha256": "2037c27810f59c6835aaa7c8e8211f228b3aac8e0acede4f60ac432479e044c0",
+      "report_sha256": "29530483cbb9b45ef5a8d51c5d8efc89632623527685d04ebd61ac5116defc0f",
+      "scope": "supported acquisition followed by actuated diagonal lift/shake; not table pickup/setdown or hardware-force calibration"
+    },
+    "robot_free_workpiece": {
+      "status": "passed",
+      "isaac_sim_version": "6.0.1",
+      "cube_size_m": 0.062,
+      "payload_kg": 0.712,
+      "pickup_setdown_cycles": 3,
+      "swing_amplitude_deg": 20,
+      "swing_frequency_hz": 1.5,
+      "swing_cycles": 5,
+      "object_static_friction": 0.6,
+      "object_dynamic_friction": 0.5,
+      "pad_material_override": false,
+      "asset_manifest_sha256": "f1bf85b22312e59fd9e8ebc38b0c53dbba1afb8aa689169b4b05fb0d46e80f38",
+      "runner_sha256": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+      "runtime_script_files_sha256": {
+        "grip_drive_control.py": "b216d514568422648a31aef5a9b9b897b0f684e71a22c314b90b3ab307ce3061",
+        "isaac_model_contract.py": "244e370e9adf6e0232859138f54ca2ab6278c146341ea1edb6106bb20cd74d19",
+        "isaac_runtime_compat.py": "bc2e7fb2f34dd362b58b6176083ba18648853ab5194ec966e2a0bc998adc7bce",
+        "run_payload_retention_test.py": "9ed52f3e83b593bf2ea63f6dcbdce4a0c273897ecd45389cf904ac14b1bd9075",
+        "run_workpiece_showcase.py": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+        "showcase_branding.py": "6d8c9be74950105ae1198780e31366b45e53e20f2353e5377ac42fcd72a534a9"
+      },
+      "report_sha256": "0324a3ed13b1bc75d603fa72d8ebbabed7a8c99d63496518f512145f6e3a6a17",
+      "physics_hz": 480,
+      "external_forces_every_iteration": true,
+      "hold_control": "position",
+      "scope": "table pickup, pendulum, setdown and release; not rated-payload or force calibration"
+    },
+    "contact_and_grasp": "runtime-pending-current-asset",
+    "drive_tuning": "pending",
+    "force_mapping": "pending"
+  },
+  "layers": {
+    "assets/2fg14/onrobot_2fg14.usda": "260ba7eccb9d63fd09331e730f1dda95ba874b493c654f5c718cd7ca2a872b47",
+    "assets/2fg14/payloads/Physics/mujoco.usda": "47c3c89baeca398af80190cc13d000baaa848b2c18c34f3d28984d70894bf7b8",
+    "assets/2fg14/payloads/Physics/physics.usda": "2d9bea1f36b62c92b3bb67f429b292815e2428073957b7d4651db842b62a0636",
+    "assets/2fg14/payloads/Physics/physx.usda": "405a53d87fbb7c9ead3abdda6bf27866ba8b61a516cedb00b46c87d4a3d0edea",
+    "assets/2fg14/payloads/base.usda": "035a3bb249f073d9a17a2c1c2d4723bf204879e92f79d6bc6e86b959221ac929",
+    "assets/2fg14/payloads/geometries.usd": "77f13f5c7c9b8aa808eecb28e28df947ff18d49a14103ad088ea871f80d898b2",
+    "assets/2fg14/payloads/instances.usda": "03eb72672e0c615dfead2dcd1c71ee7f72f913ade15287a10b46cf44bf136863",
+    "assets/2fg14/payloads/materials.usda": "1b42727fb22549a0ac0786fbfbeec50c4e848513e284e9c7a815fded82cf53d3",
+    "assets/2fg14/payloads/robot.usda": "a320d51710048b31c052394e6bda9594dfb22ffa42f271dceaa4a9b975fdce9f"
+  }
+}

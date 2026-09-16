@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "test": "unloaded-drive-step-response",
+  "physics_dt_s": 0.004166666666666667,
+  "settle_duration_s": 1.5,
+  "response_duration_s": 2.0,
+  "repetitions": 3,
+  "models": {
+    "2fg7": {
+      "coordinate": "mechanism_width_mm",
+      "start": 10.0,
+      "target": 30.0,
+      "hardware_reference": "provisional-one-clean-closing-step"
+    },
+    "2fg14": {
+      "coordinate": "mechanism_width_mm",
+      "start": 10.0,
+      "target": 40.0,
+      "hardware_reference": "provisional-bidirectional-measured-log"
+    },
+    "rg2": {
+      "coordinate": "task_aperture_mm",
+      "start": 30.0,
+      "target": 90.0,
+      "hardware_reference": "not-supplied"
+    },
+    "rg6": {
+      "coordinate": "task_aperture_mm",
+      "start": 40.0,
+      "target": 120.0,
+      "hardware_reference": "provisional-unloaded-measured-log"
+    }
+  }
+}

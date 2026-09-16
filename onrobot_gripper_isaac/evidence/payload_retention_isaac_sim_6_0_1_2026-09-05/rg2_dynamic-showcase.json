@@ -1,0 +1,151 @@
+{
+  "acquisition_geometry": {
+    "block_position_m": [
+      -0.00009927527571562678,
+      -0.06305442005395889,
+      0.21950000524520874
+    ],
+    "fingertip_orientations_wxyz": [
+      [
+        -0.4998433589935303,
+        0.4998432695865631,
+        -0.500156819820404,
+        0.5001567006111145
+      ],
+      [
+        -0.4999575614929199,
+        -0.49995580315589905,
+        0.5000424385070801,
+        0.5000444650650024
+      ]
+    ],
+    "fingertip_positions_m": [
+      [
+        -0.029368838295340538,
+        -0.05787990987300873,
+        0.2196999490261078
+      ],
+      [
+        0.029210524633526802,
+        -0.057884763926267624,
+        0.2196999043226242
+      ]
+    ]
+  },
+  "asset": "assets/rg2/onrobot_rg2.usda",
+  "asset_files_sha256": {
+    "onrobot_rg2.usda": "958d56d8499becaefba36e0f9f4b753d608e0735999e4337abf064c4dce1457c",
+    "payloads/Physics/physics.usda": "4eb0a2c15b159235a7e4efe2bf7acccea582c24be22f4d7d599c3dadb7e1c197",
+    "payloads/Physics/physx.usda": "b17d661ef1615bdbea732bf8c8617494baa6075638320643e9fdd4bca70cc28d",
+    "payloads/Physics/physx_parallel_grip.usda": "b17d661ef1615bdbea732bf8c8617494baa6075638320643e9fdd4bca70cc28d",
+    "payloads/Physics/physx_parallel_grip_tip_contact.usda": "c514bc40577c9579ec44cd76884a39616a32e12f5bddc28f23dd3740771bd4e3",
+    "payloads/base.usda": "004df9626003605be29e4f547373590bbcbd863ca1c3acbab4bbfde57fbe3025",
+    "payloads/geometries.usd": "579ab7c58699ffb120986ea3733399949a64eab7b95a63711fc60a363cf791be",
+    "payloads/instances.usda": "0de6a19bce81d25b7eb9fa3f02b755bdca360f66299c2e64845657fc551afeae",
+    "payloads/materials.usda": "c7ee30535bab36ad7f01ec43e909ca7f0ec572fe77aa78881fc60898354e09ab",
+    "payloads/robot.usda": "158927d81f545908dfa5492479d1a03f162ec39e8b6dba94fa653aa59200ee33"
+  },
+  "asset_revision": "3.0",
+  "config": "config/payload_retention_profiles.json",
+  "config_sha256": "9a72ded78748472cfe36e2b765ad9d2f26cf5d7a4a5bcfe9829d490c5f6ed39e",
+  "effective_solver_settings": {
+    "position_iterations": 68,
+    "solve_articulation_contact_last": false,
+    "velocity_iterations": 4
+  },
+  "expected_asset_fingertip_material": {
+    "dynamic_friction": 1.1,
+    "friction_combine_mode": "max",
+    "static_friction": 1.1
+  },
+  "fingertip_material_bindings": [
+    {
+      "binding_paths": [],
+      "collision_paths": [
+        "/onrobot_rg2/Geometry/left_finger_tip_link/fingertip_standard_link/geo_1_1"
+      ]
+    },
+    {
+      "binding_paths": [],
+      "collision_paths": [
+        "/onrobot_rg2/Geometry/right_finger_tip_link/fingertip_standard_link/geo_1_1"
+      ]
+    }
+  ],
+  "fixture_drive_override": null,
+  "fixture_fingertip_material_override": null,
+  "fixture_solver_override": null,
+  "harness_revision": 8,
+  "isaac_sim_version": "6.0.1",
+  "model": "rg2",
+  "motion": {
+    "diagonal_hold_force_n": [
+      2.0,
+      0.0,
+      2.0
+    ],
+    "lift_displacement_m": [
+      0.06,
+      -0.03,
+      0.06
+    ],
+    "mount": "sideways-horizontal-external-pinch",
+    "shake_cycles": 2,
+    "shake_displacement_amplitude_m": [
+      0.006,
+      0.004,
+      0.003
+    ],
+    "shake_force_amplitude_n": [
+      4.0,
+      3.0,
+      2.0
+    ]
+  },
+  "payload_basis": "configured-fraction-of-datasheet-maximum-force-fit-payload",
+  "payload_fraction_of_rating": 1.0,
+  "payload_mass_kg": 2.0,
+  "payload_rating_source": "OnRobot RG2 Datasheet v1.8",
+  "payload_size_m": [
+    0.049,
+    0.035,
+    0.04
+  ],
+  "physics_backend": "physx",
+  "presentation": {
+    "enabled": false
+  },
+  "rated_force_fit_payload_kg": 2.0,
+  "runner_sha256": "8ee7f870ef4bc3cf330442074fb24c706846e620274b049205eb0c174f3aadfb",
+  "scenario": "dynamic-showcase",
+  "schema_version": 1,
+  "status": "passed",
+  "test": "sideways-external-pinch-payload-retention",
+  "tests": [
+    {
+      "checks": {
+        "articulation_and_payload_state_finite": true,
+        "gripper_joint_stable": true,
+        "gripper_linkage_stable": true,
+        "joint_blocked_before_commanded_endpoint": true,
+        "payload_relative_rotation_bounded": true,
+        "payload_relative_translation_bounded": true,
+        "payload_speed_bounded": true
+      },
+      "measurements": {
+        "acquired_joint_position": 0.5537434220314026,
+        "acquired_projected_joint_force": -1.5956342220306396,
+        "blocking_error": 0.2537434220314026,
+        "commanded_grasp_target": 0.3,
+        "maximum_absolute_projected_joint_force": 2.514869213104248,
+        "maximum_joint_drift": 0.0000947117805480957,
+        "maximum_linkage_drift": 0.00014913082122802734,
+        "maximum_payload_speed_m_s": 0.04734373709628888,
+        "maximum_relative_rotation_error_rad": 0.0,
+        "maximum_relative_translation_error_m": 0.000016001439578031505
+      },
+      "name": "external_pinch_full_rated_diagonal_load_and_shake",
+      "status": "passed"
+    }
+  ]
+}

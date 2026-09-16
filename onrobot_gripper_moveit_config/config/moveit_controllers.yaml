@@ -1,0 +1,17 @@
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - physical_gripper_controller
+
+  physical_gripper_controller:
+    type: ParallelGripperCommand
+    action_ns: gripper_cmd
+    default: true
+    joints:
+      - finger_stroke
+    command_joint: finger_stroke
+    # The launch selects finger_joint for RG. No force-to-torque or
+    # physical-speed mapping is implied by the position-only adapter.
+    max_effort: 0.0
+    max_velocity: 0.0

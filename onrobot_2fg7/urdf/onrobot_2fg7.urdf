@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="onrobot_2fg7">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.000250068281809191 -0.000120249294815739 0.0604924064083801"
+        rpy="0 0 0" />
+      <mass
+        value="1.01367380846164" />
+      <inertia
+        ixx="0.000795915432608799"
+        ixy="-9.38022824934476E-08"
+        ixz="4.67926592198595E-07"
+        iyy="0.00105686067057979"
+        iyz="-2.27483342631346E-07"
+        izz="0.000969771607586708" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="left_finger_base_link">
+    <inertial>
+      <origin
+        xyz="-0.00550328296085684 -0.00447185457977535 -0.00970698346711139"
+        rpy="0 0 0" />
+      <mass
+        value="0.00892925116074971" />
+      <inertia
+        ixx="2.69775538975237E-06"
+        ixy="-1.23118285874232E-07"
+        ixz="-2.38478085951737E-07"
+        iyy="2.27015294291925E-06"
+        iyz="-4.67205230900068E-07"
+        izz="5.82712263180963E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/finger_base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/finger_base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_finger_base_joint"
+    type="prismatic">
+    <origin
+      xyz="0.0115 0 0.11299"
+      rpy="3.1416 -1.5708 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="left_finger_base_link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0.019"
+      effort="140"
+      velocity="0.45" />
+  </joint>
+  <link
+    name="left_fingertip_link">
+    <inertial>
+      <origin
+        xyz="0.0183615920325445 -2.11640405324973E-06 0.00586622571869662"
+        rpy="0 0 0" />
+      <mass
+        value="0.0328042666854099" />
+      <inertia
+        ixx="2.83649048895101E-06"
+        ixy="-1.25101536754435E-09"
+        ixz="-8.61288327156891E-07"
+        iyy="5.84747886673199E-06"
+        iyz="5.58138778630447E-09"
+        izz="7.46158195977564E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/silicone_fingertip_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.956862745098039 0.949019607843137 0.96078431372549 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/silicone_fingertip_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left_fingertip_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="left_finger_base_link" />
+    <child
+      link="left_fingertip_link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="right_finger_base_link">
+    <inertial>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.00892925116074971" />
+      <inertia
+        ixx="2.69775538975237E-06"
+        ixy="-1.23118285874232E-07"
+        ixz="-2.38478085951736E-07"
+        iyy="2.27015294291924E-06"
+        iyz="-4.67205230900077E-07"
+        izz="5.82712263180967E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/finger_base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/finger_base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_finger_base_joint"
+    type="prismatic">
+    <origin
+      xyz="-0.0115 0 0.11299"
+      rpy="0 -1.5708 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="right_finger_base_link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0"
+      upper="0.019"
+      effort="140"
+      velocity="0.45" />
+    <mimic
+      joint="left_finger_base_joint"
+      multiplier="1"
+      offset="0" />
+  </joint>
+  <link
+    name="right_fingertip_link">
+    <inertial>
+      <origin
+        xyz="0.018362 -2.089E-06 0.0058662"
+        rpy="0 0 0" />
+      <mass
+        value="0.032804" />
+      <inertia
+        ixx="2.8365E-06"
+        ixy="-1.2394E-09"
+        ixz="-8.6129E-07"
+        iyy="5.8475E-06"
+        iyz="5.5814E-09"
+        izz="7.4616E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/silicone_fingertip_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.95686 0.94902 0.96078 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://onrobot_2fg7/meshes/silicone_fingertip_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right_fingertip_joint"
+    type="fixed">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="right_finger_base_link" />
+    <child
+      link="right_fingertip_link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_gripper_controllers</name>
+  <version>0.1.0</version>
+  <description>Realtime motion, semantic state, and recovery ros2_control controllers for OnRobot grippers.</description>
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>controller_interface</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>hardware_interface</depend>
+  <depend>onrobot_gripper_msgs</depend>
+  <depend>parallel_gripper_controller</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>realtime_tools</depend>
+  <depend>std_srvs</depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>control_msgs</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

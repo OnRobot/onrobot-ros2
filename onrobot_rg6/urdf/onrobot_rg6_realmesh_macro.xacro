@@ -1,0 +1,877 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- ================= Xacro arguments ================= -->
+
+      <xacro:arg name="mesh_path" default="package://onrobot_rg6/meshes"/>
+      <xacro:arg name="fingertip_material" default="standard"/>
+      <xacro:arg name="use_standard_fingertips" default="true"/>
+
+      <!-- outwards or inwards -->
+      <xacro:arg name="fingertip_orientation" default="inwards"/>
+      <xacro:arg name="host" default="127.0.0.1"/>
+      <xacro:arg name="port" default="502"/>
+      <xacro:arg name="transport" default="tcp"/>
+      <xacro:arg name="serial_device" default="/dev/ttyUSB0"/>
+      <xacro:arg name="baud_rate" default="1000000"/>
+      <xacro:arg name="rtu_parity" default="even"/>
+      <xacro:arg name="slave_id" default="65"/>
+      <xacro:arg name="connect_timeout_ms" default="1000"/>
+      <xacro:arg name="read_timeout_ms" default="1000"/>
+      <xacro:arg name="write_timeout_ms" default="1000"/>
+      <xacro:arg name="backend" default="real"/>
+      <xacro:arg name="isaac_joint_commands_topic" default="isaac_joint_commands"/>
+      <xacro:arg name="isaac_joint_states_topic" default="isaac_joint_states"/>
+      <xacro:arg name="isaac_state_timeout_ms" default="250"/>
+      <xacro:arg name="safe_width_min_mm" default="0.0"/>
+      <xacro:arg name="safe_width_max_mm" default="160.0"/>
+      <xacro:arg name="default_force_n" default="20.0"/>
+      <xacro:arg name="realtime_update_rate_hz" default="50"/>
+
+  <xacro:macro name="onrobot_rg6_realmesh" params="parent:='' prefix:='' origin_xyz:='0 0 0' origin_rpy:='0 0 0' backend:='real' host:='127.0.0.1' port:='502' transport:='tcp' serial_device:='/dev/ttyUSB0' baud_rate:='1000000' rtu_parity:='even' slave_id:='65' connect_timeout_ms:='1000' read_timeout_ms:='1000' write_timeout_ms:='1000' safe_width_min_mm:='0.0' safe_width_max_mm:='160.0' default_force_n:='20.0' realtime_update_rate_hz:='50' include_ros2_control:=true">
+    <xacro:property name="cad_finger_upper" value="${1.1928 if backend == 'isaac' else asin(151.6 / 160.0) + asin(4.2 / 80.0)}"/>
+    <xacro:if value="${parent != ''}">
+      <joint name="${prefix}mount_joint" type="fixed"><parent link="${parent}"/><child link="${prefix}base_link"/><origin xyz="${origin_xyz}" rpy="${origin_rpy}"/></joint>
+    </xacro:if>
+      <!-- ================= Fingertip orientation ================= -->
+
+      <xacro:if value="${'$(arg fingertip_orientation)' == 'inwards'}">
+        <xacro:property name="fingertip_rpy_vis" value="${pi / 2} 0 0"/>
+        <xacro:property name="fingertip_collision_xyz" value="0 0 0"/>
+        <xacro:property name="fingertip_collision_rpy" value="${pi} 0 0"/>
+      </xacro:if>
+
+      <xacro:unless value="${'$(arg fingertip_orientation)' == 'inwards'}">
+        <xacro:property name="fingertip_rpy_vis" value="${pi / 2} 0 0"/>
+        <xacro:property name="fingertip_collision_xyz" value="0 0 -0.0084"/>
+        <xacro:property name="fingertip_collision_rpy" value="0 0 0"/>
+      </xacro:unless>
+
+      <!-- ================= Fingertip material ================= -->
+
+        <xacro:if value="${'$(arg fingertip_material)' == 'standard'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_standard"/>
+      </xacro:if>
+
+      <xacro:if value="${'$(arg fingertip_material)' == 'x'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_x"/>
+      </xacro:if>
+
+      <xacro:if value="${'$(arg fingertip_material)' == '50_standard'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_50_standard"/>
+      </xacro:if>
+
+      <xacro:if value="${'$(arg fingertip_material)' == '50_x'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_50_x"/>
+      </xacro:if>
+
+      <xacro:if value="${'$(arg fingertip_material)' == '100_standard'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_100_standard"/>
+      </xacro:if>
+
+      <xacro:if value="${'$(arg fingertip_material)' == '100_x'}">
+        <xacro:property
+          name="fingertip_mesh"
+          value="$(arg mesh_path)/fingertip_100_x"/>
+      </xacro:if>
+
+      <!-- ================= Fingertip inertial values ================= -->
+
+      <!-- ================= Standard and x fingertip inertia ================= -->
+
+      <xacro:if value="${'$(arg fingertip_material)' == 'standard' or '$(arg fingertip_material)' == 'x'}">
+
+        <xacro:property
+            name="fingertip_inertial_origin_xyz"
+            value="-0.000415245269094811 9.99885104498482E-05 -0.000165694664188377"/>
+        <xacro:property name="fingertip_mass" value="0.00794964440363267"/>
+        <xacro:property name="fingertip_ixx" value="5.15212191011275E-07"/>
+        <xacro:property name="fingertip_ixy" value="-8.74258433074447E-13"/>
+        <xacro:property name="fingertip_ixz" value="-1.51311624243258E-08"/>
+        <xacro:property name="fingertip_iyy" value="8.83850409371737E-07"/>
+        <xacro:property name="fingertip_iyz" value="4.99311599525026E-13"/>
+        <xacro:property name="fingertip_izz" value="1.27369503224217E-06"/>
+
+      </xacro:if>
+
+      <!-- ================= 50 mm standard and x extension inertia ================= -->
+
+      <xacro:if value="${'$(arg fingertip_material)' == '50_standard' or '$(arg fingertip_material)' == '50_x'}">
+
+        <xacro:property
+            name="fingertip_inertial_origin_xyz"
+            value="0.030851 -1.3178E-08 0.00066842"/>
+        <xacro:property name="fingertip_mass" value="0.030186"/>
+        <xacro:property name="fingertip_ixx" value="1.2853E-06"/>
+        <xacro:property name="fingertip_ixy" value="-1.0138E-11"/>
+        <xacro:property name="fingertip_ixz" value="7.33E-09"/>
+        <xacro:property name="fingertip_iyy" value="1.0583E-05"/>
+        <xacro:property name="fingertip_iyz" value="-8.1418E-13"/>
+        <xacro:property name="fingertip_izz" value="1.1379E-05"/>
+
+      </xacro:if>
+
+      <!-- ================= 100 mm standard and x extension inertia ================= -->
+
+      <xacro:if value="${'$(arg fingertip_material)' == '100_standard' or '$(arg fingertip_material)' == '100_x'}">
+
+          <xacro:property
+            name="fingertip_inertial_origin_xyz"
+            value="0.057465 -2.6865E-08 0.0010303"/>
+        <xacro:property name="fingertip_mass" value="0.046499"/>
+        <xacro:property name="fingertip_ixx" value="1.6626E-06"/>
+        <xacro:property name="fingertip_ixy" value="-6.5184E-11"/>
+        <xacro:property name="fingertip_ixz" value="9.5224E-08"/>
+        <xacro:property name="fingertip_iyy" value="4.7491E-05"/>
+        <xacro:property name="fingertip_iyz" value="-4.4294E-12"/>
+        <xacro:property name="fingertip_izz" value="4.8472E-05" />
+
+      </xacro:if>
+
+      <!-- ================= Fingertip inertial macro ================= -->
+
+      <xacro:macro name="fingertip_inertial">
+        <inertial>
+          <origin
+            xyz="${fingertip_inertial_origin_xyz}"
+            rpy="0 0 0"/>
+          <mass value="${fingertip_mass}"/>
+          <inertia
+            ixx="${fingertip_ixx}"
+            ixy="${fingertip_ixy}"
+            ixz="${fingertip_ixz}"
+            iyy="${fingertip_iyy}"
+            iyz="${fingertip_iyz}"
+            izz="${fingertip_izz}"/>
+        </inertial>
+      </xacro:macro>
+
+      <!-- ================= Shared materials ================= -->
+
+      <material name="${prefix}base_grey">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+
+      <material name="${prefix}body_white">
+        <color rgba="1 1 1 1"/>
+      </material>
+
+      <material name="${prefix}cover_grey">
+        <color
+          rgba="0.25 0.25 0.25 1"/>
+      </material>
+
+      <!-- ================= Base link ================= -->
+
+      <link name="${prefix}base_link">
+        <inertial>
+          <origin
+            xyz="-0.00121788599047724 -0.000550668033101437 0.0187282967117692"
+            rpy="0 0 0"/>
+          <mass value="0.204758708246786"/>
+          <inertia
+            ixx="6.64001336616449E-05"
+            ixy="-1.76622602816932E-08"
+            ixz="3.54902398565887E-07"
+            iyy="6.08703694320358E-05"
+            iyz="-1.99495160489733E-07"
+            izz="0.000104892887141359"/>
+        </inertial>
+
+        <visual>
+          <origin 
+            xyz="0 0 0.01384" 
+            rpy="${pi} 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/base_link.dae"/>
+          </geometry>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/base_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- ================= Body link ================= -->
+
+      <link name="${prefix}body_link">
+        <inertial>
+          <origin
+            xyz="0.0434153623779559 5.3786957841064E-05 -5.29481917390598E-05"
+            rpy="0 0 0"/>
+          <mass value="0.60552714704761"/>
+          <inertia
+            ixx="0.000247806198136595"
+            ixy="-3.09068060110115E-06"
+            ixz="6.82132501556445E-07"
+            iyy="0.00101875038940284"
+            iyz="5.58944896976989E-08"
+            izz="0.000814988330532685"/>
+        </inertial>
+
+        <visual>
+          <origin 
+            xyz="-0.0365 0 0" 
+            rpy="${pi} ${pi/2} 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/body_link.dae"/>
+          </geometry>
+        </visual>
+
+        <collision>
+          <origin 
+            xyz="0 0 0" 
+            rpy="${pi} 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/body_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}body_joint" type="fixed">
+        <origin
+          xyz="0 0 0.0503000000000003"
+          rpy="0 -1.5707963267949 0"/>
+        <parent link="${prefix}base_link"/>
+        <child link="${prefix}body_link"/>
+      </joint>
+
+      <!-- ================= Right outer proximal finger ================= -->
+
+      <link name="${prefix}right_outer_proximal_finger_link">
+        <inertial>
+          <origin
+            xyz="0.0177338821259218 -8.32951273863174E-05 -6.63580284241195E-08"
+            rpy="0 0 0"/>
+          <mass value="0.0848117981062213"/>
+          <inertia
+            ixx="8.71821520908564E-06"
+            ixy="1.34526866604961E-06"
+            ixz="3.84850856626284E-11"
+            iyy="5.52144884000519E-05"
+            iyz="-4.03714649653644E-11"
+            izz="5.4966795562473E-05"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/outer_proximal_finger_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/outer_proximal_finger_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}finger_joint" type="revolute">
+        <origin
+          xyz="0.0849999999999914 0 -0.0238499999999955"
+          rpy="-1.5707963267949 0 0"/>
+        <parent link="${prefix}body_link"/>
+        <child link="${prefix}right_outer_proximal_finger_link"/>
+        <axis xyz="0 0 1"/>
+        <limit
+          lower="0"
+          upper="${cad_finger_upper}"
+          effort="16.17"
+          velocity="1.34"/>
+      </joint>
+
+      <!-- ================= Right finger base ================= -->
+
+      <link name="${prefix}right_finger_base_link">
+        <inertial>
+          <origin
+            xyz="0.0245303578322192 -0.0101016281440233 -9.99975309271899E-05"
+            rpy="0 0 0"/>
+          <mass value="0.0219132001177097"/>
+          <inertia
+            ixx="1.29440989381929E-06"
+            ixy="2.07037163398328E-06"
+            ixz="-4.84504967490224E-13"
+            iyy="7.54766158511745E-06"
+            iyz="4.36721422019022E-13"
+            izz="8.16537121487209E-06"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}right_finger_base_link" type="continuous">
+        <origin
+          xyz="0.0798896739261193 -0.00419999999758666 0"
+          rpy="0 0 0"/>
+        <parent link="${prefix}right_outer_proximal_finger_link"/>
+        <child link="${prefix}right_finger_base_link"/>
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="-1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Right finger cover ================= -->
+
+      <link name="${prefix}right_finger_cover_link">
+        <inertial>
+          <origin
+            xyz="-0.0272052614455263 0.00166203526226322 -9.99202916528356E-05"
+            rpy="0 0 0"/>
+          <mass value="0.00654133884855527"/>
+          <inertia
+            ixx="2.20130240213327E-07"
+            ixy="1.57708709316053E-07"
+            ixz="-7.28649779330084E-13"
+            iyy="2.11303877150424E-06"
+            iyz="-1.81532285162983E-13"
+            izz="2.307595228608E-06"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_cover_link.STL"/>
+          </geometry>
+          <material name="${prefix}cover_grey"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_cover_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}right_finger_cover_joint" type="continuous">
+        <origin
+          xyz="0.01155 -0.00664999999999995 0"
+          rpy="0 0 0"/>
+        <parent link="${prefix}right_finger_base_link"/>
+        <child link="${prefix}right_finger_cover_link"/>
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Right fingertip ================= -->
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <link name="${prefix}right_finger_tip_link">
+        <xacro:fingertip_inertial/>
+        <visual>
+          <origin
+            xyz="${fingertip_collision_xyz}"
+            rpy="${fingertip_collision_rpy}"/>
+          <geometry>
+                <mesh filename="${fingertip_mesh}_link.dae"/>
+          </geometry>
+        </visual>
+
+        <collision>
+          <origin
+            xyz="${fingertip_collision_xyz}"
+            rpy="${fingertip_collision_rpy}"/>
+          <geometry>
+                <mesh filename="${fingertip_mesh}_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+      </xacro:if>
+
+      <link name="${prefix}right_finger_mount"/>
+
+      <joint name="${prefix}right_finger_mount_joint" type="fixed">
+        <origin
+          xyz="0.0479 -0.0196 0"
+          rpy="0 0 0"/>
+        <parent link="${prefix}right_finger_base_link"/>
+        <child link="${prefix}right_finger_mount"/>
+      </joint>
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <joint name="${prefix}right_finger_tip_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="${fingertip_rpy_vis}"/>
+        <parent link="${prefix}right_finger_mount"/>
+        <child link="${prefix}right_finger_tip_link"/>
+      </joint>
+      </xacro:if>
+
+      <!-- ================= Right inner proximal finger ================= -->
+
+      <link name="${prefix}right_inner_proximal_finger_link">
+        <inertial>
+          <origin
+            xyz="0.0388879789845956 -0.00254047815772547 -0.000105026480050108"
+            rpy="0 0 0"/>
+          <mass value="0.0209379492759949"/>
+          <inertia
+            ixx="1.66325652747798E-06"
+            ixy="8.5496814274727E-07"
+            ixz="-2.4758818329976E-12"
+            iyy="1.76493383239348E-05"
+            iyz="2.44875952455023E-13"
+            izz="1.63390526801637E-05"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/inner_proximal_finger_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/inner_proximal_finger_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}right_inner_proximal_finger_joint" type="continuous">
+        <origin
+          xyz="0.1081 0 -0.0105499999999994"
+          rpy="-1.5707963267949 0 0"/>
+        <parent link="${prefix}body_link"/>
+        <child link="${prefix}right_inner_proximal_finger_link"/>
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Left outer proximal finger ================= -->
+
+      <link name="${prefix}left_outer_proximal_finger_link">
+        <inertial>
+          <origin
+            xyz="0.0177338821257871 -8.32951273467969E-05 -6.63580395243983E-08"
+            rpy="0 0 0"/>
+          <mass value="0.0848117981059909"/>
+          <inertia
+            ixx="8.71821520907421E-06"
+            ixy="1.34526866599051E-06"
+            ixz="3.84851186671045E-11"
+            iyy="5.52144883997528E-05"
+            iyz="-4.03714700288834E-11"
+            izz="5.496679556217E-05"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/outer_proximal_finger_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh
+              filename="$(arg mesh_path)/outer_proximal_finger_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}left_outer_proximal_finger_joint" type="revolute">
+        <origin
+          xyz="0.0850000000000254 0 0.0237500000000128"
+          rpy="1.5707963267949 0 0"/>
+        <parent link="${prefix}body_link"/>
+        <child link="${prefix}left_outer_proximal_finger_link"/>
+        <axis xyz="0 0 1"/>
+        <limit
+          lower="0"
+          upper="${cad_finger_upper}"
+          effort="16.17"
+          velocity="1.34"/>
+
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Left finger base ================= -->
+
+      <link name="${prefix}left_finger_base_link">
+        <inertial>
+          <origin
+            xyz="0.0245303578322203 -0.0101016281440251 2.46907248070556E-09"
+            rpy="0 0 0"/>
+          <mass value="0.0219132001177097"/>
+          <inertia
+            ixx="1.29440989381929E-06"
+            ixy="2.07037163398328E-06"
+            ixz="-4.84504982625829E-13"
+            iyy="7.54766158511746E-06"
+            iyz="4.36721426440262E-13"
+            izz="8.16537121487209E-06"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}left_finger_base_joint" type="continuous">
+        <origin
+          xyz="0.0798896739260845 -0.00419999999760181 0"
+          rpy="0 0 0"/>
+        <parent link="${prefix}left_outer_proximal_finger_link"/>
+        <child link="${prefix}left_finger_base_link"/>
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="-1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Left finger cover ================= -->
+
+      <link name="${prefix}left_finger_cover_link">
+        <inertial>
+          <origin
+            xyz="-0.0272052614455309 0.00166203526231937 7.9708347079959E-08"
+            rpy="0 0 0"/>
+          <mass value="0.0065413388485553"/>
+          <inertia
+            ixx="2.20130241120385E-07"
+            ixy="1.5770870931553E-07"
+            ixz="-7.28647952226547E-13"
+            iyy="2.11303877241158E-06"
+            iyz="-1.81531566232666E-13"
+            izz="2.3075952286081E-06"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_cover_link.STL"/>
+          </geometry>
+
+          <material name="${prefix}cover_grey"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_cover_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}left_finger_cover_joint" type="continuous">
+        <origin
+          xyz="0.01155 -0.00665 0"
+          rpy="0 0 0"/>
+
+        <parent link="${prefix}left_finger_base_link"/>
+        <child link="${prefix}left_finger_cover_link"/>
+
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Left fingertip ================= -->
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <link name="${prefix}left_finger_tip_link">
+        <xacro:fingertip_inertial/>
+
+        <visual>
+          <origin
+            xyz="${fingertip_collision_xyz}"
+            rpy="${fingertip_collision_rpy}"/>
+          <geometry>
+                <mesh filename="${fingertip_mesh}_link.dae"/>
+          </geometry>
+        </visual>
+
+        <collision>
+          <origin
+            xyz="${fingertip_collision_xyz}"
+            rpy="${fingertip_collision_rpy}"/>
+          <geometry>
+                <mesh filename="${fingertip_mesh}_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+      </xacro:if>
+
+      <link name="${prefix}left_finger_mount"/>
+
+      <joint name="${prefix}left_finger_mount_joint" type="fixed">
+        <origin
+          xyz="0.0479 -0.0196 0"
+          rpy="0 0 0"/>
+        <parent link="${prefix}left_finger_base_link"/>
+        <child link="${prefix}left_finger_mount"/>
+      </joint>
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <joint name="${prefix}left_finger_tip_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="${fingertip_rpy_vis}"/>
+        <parent link="${prefix}left_finger_mount"/>
+        <child link="${prefix}left_finger_tip_link"/>
+      </joint>
+      </xacro:if>
+
+      <!-- ================= Left inner proximal finger ================= -->
+
+      <link name="${prefix}left_inner_proximal_finger_link">
+        <inertial>
+          <origin
+            xyz="0.0388879789845877 -0.00254047815756097 0.000105017186589876"
+            rpy="0 0 0"/>
+          <mass value="0.0209379492759949"/>
+          <inertia
+            ixx="1.66325652747629E-06"
+            ixy="8.54968142731476E-07"
+            ixz="-2.47588181911418E-12"
+            iyy="1.76493383239365E-05"
+            iyz="2.44875941899567E-13"
+            izz="1.63390526801636E-05"/>
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/inner_proximal_finger_link.STL"/>
+          </geometry>
+          <material name="${prefix}body_white"/>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <geometry>
+            <mesh filename="$(arg mesh_path)/inner_proximal_finger_link.STL"/>
+          </geometry>
+        </collision>
+      </link>
+
+      <joint name="${prefix}left_inner_proximal_finger_joint" type="continuous">
+        <origin
+          xyz="0.1081 0 0.0104500000000006"
+          rpy="1.5707963267949 0 0"/>
+        <parent link="${prefix}body_link"/>
+        <child link="${prefix}left_inner_proximal_finger_link"/>
+        <axis xyz="0 0 1"/>
+        <mimic
+          joint="${prefix}finger_joint"
+          multiplier="1"
+          offset="0"/>
+      </joint>
+
+      <!-- ================= Fingertip friction ================= -->
+
+      <gazebo reference="${prefix}left_finger_tip_link">
+        <mu1>0.4</mu1>
+        <mu2>0.4</mu2>
+      </gazebo>
+
+      <gazebo reference="${prefix}right_finger_tip_link">
+        <mu1>0.4</mu1>
+        <mu2>0.4</mu2>
+      </gazebo>
+
+      <!-- Semantic aperture control joint; visual finger-angle calibration remains
+           a separate requirement and is not silently approximated here. -->
+      <link name="${prefix}grip_stroke_control_link"/>
+      <joint name="${prefix}grip_stroke" type="prismatic">
+        <parent link="${prefix}base_link"/><child link="${prefix}grip_stroke_control_link"/>
+        <axis xyz="1 0 0"/><limit lower="0" upper="0.160" effort="120" velocity="1"/>
+      </joint>
+
+    <xacro:if value="${include_ros2_control}">
+        <ros2_control name="${prefix}OnRobotRG6System" type="system">
+            <hardware>
+              <xacro:if value="${backend == 'real'}"><plugin>onrobot_gripper_hardware/OnRobotRgSystem</plugin></xacro:if>
+              <xacro:if value="${backend == 'fake'}"><plugin>onrobot_gripper_hardware/OnRobotParallelGripperFakeSystem</plugin></xacro:if>
+              <xacro:if value="${backend == 'isaac'}"><plugin>onrobot_gripper_hardware/OnRobotIsaacSystem</plugin></xacro:if>
+              <param name="model">rg6</param>
+              <param name="transport">${transport}</param>
+              <param name="host">${host}</param>
+              <param name="port">${port}</param>
+              <param name="serial_device">${serial_device}</param>
+              <param name="baud_rate">${baud_rate}</param>
+              <param name="rtu_parity">${rtu_parity}</param>
+              <param name="slave_id">${slave_id}</param>
+              <param name="connect_timeout_ms">${connect_timeout_ms}</param>
+              <param name="read_timeout_ms">${read_timeout_ms}</param>
+              <param name="write_timeout_ms">${write_timeout_ms}</param>
+              <param name="safe_width_min_mm">${safe_width_min_mm}</param><param name="safe_width_max_mm">${safe_width_max_mm}</param>
+              <param name="default_force_n">${default_force_n}</param>
+              <param name="fake_task_min_m">${float(str(safe_width_min_mm)) / 1000.0}</param>
+              <param name="fake_task_max_m">${float(str(safe_width_max_mm)) / 1000.0}</param>
+              <param name="visual_finger_joint_upper_rad">${cad_finger_upper}</param>
+              <param name="isaac_joint">finger_joint</param>
+              <param name="isaac_joint_commands_topic">$(arg isaac_joint_commands_topic)</param>
+              <param name="isaac_joint_states_topic">$(arg isaac_joint_states_topic)</param>
+              <param name="isaac_state_timeout_ms">$(arg isaac_state_timeout_ms)</param>
+              <param name="task_min_m">${float(str(safe_width_min_mm)) / 1000.0}</param>
+              <param name="task_max_m">${float(str(safe_width_max_mm)) / 1000.0}</param>
+              <param name="physical_min_m">0.0</param>
+              <param name="physical_max_m">1.1928</param>
+              <param name="raw_linear_min_mm">0.0</param>
+              <param name="raw_linear_max_mm">1192.8</param>
+              <param name="realtime_update_rate_hz">${realtime_update_rate_hz}</param>
+              <param name="realtime_command_timeout_ms">100</param>
+              <param name="realtime_maximum_consecutive_failures">3</param>
+            </hardware>
+            <joint name="${prefix}grip_stroke">
+              <command_interface name="position"/><command_interface name="effort"/>
+              <command_interface name="realtime_mode"/>
+              <command_interface name="realtime_task_position"/>
+              <command_interface name="realtime_mechanism_angular_velocity"/>
+              <command_interface name="realtime_force"/>
+              <command_interface name="realtime_command_sequence"/>
+              <command_interface name="fault_recovery_command_sequence"/>
+              <command_interface name="stop_command_sequence"/>
+              <command_interface name="conventional_command_sequence"/>
+              <state_interface name="position"/><state_interface name="velocity"/>
+              <state_interface name="effort"/>
+              <state_interface name="task_position_valid"/>
+              <state_interface name="force_valid"/><state_interface name="busy"/>
+              <state_interface name="grip_detected"/><state_interface name="active_mode"/>
+              <state_interface name="safety_status_valid"/>
+              <state_interface name="safety_1_pushed"/><state_interface name="safety_1_triggered"/>
+              <state_interface name="safety_2_pushed"/><state_interface name="safety_2_triggered"/>
+              <state_interface name="safety_dc_error"/>
+              <state_interface name="connection_state"/>
+              <state_interface name="faulted"/><state_interface name="fault_code"/>
+              <state_interface name="firmware_qualification"/>
+              <state_interface name="sample_sequence"/><state_interface name="sample_age"/>
+              <state_interface name="requested_command_sequence"/>
+              <state_interface name="applied_command_sequence"/>
+              <state_interface name="successful_cycles"/>
+              <state_interface name="failed_cycles"/><state_interface name="missed_deadlines"/>
+              <state_interface name="watchdog_stops"/><state_interface name="reconnects"/><state_interface name="last_cycle_duration"/>
+              <state_interface name="minimum_task_aperture"/><state_interface name="maximum_task_aperture"/>
+              <state_interface name="diagnostic_status_valid"/>
+              <state_interface name="diagnostic_identity_valid" />
+              <state_interface name="diagnostic_product_code" />
+              <state_interface name="diagnostic_firmware_major" />
+              <state_interface name="diagnostic_firmware_minor" />
+              <state_interface name="diagnostic_firmware_build" />
+              <state_interface name="diagnostic_board_revisions_valid" />
+              <state_interface name="diagnostic_product_revision" />
+              <state_interface name="diagnostic_hardware_revision" />
+              <state_interface name="diagnostic_pcb_revision" />
+              <state_interface name="diagnostic_firmware_crc_valid" />
+              <state_interface name="diagnostic_firmware_crc" />
+              <state_interface name="diagnostic_firmware_source_valid" />
+              <state_interface name="diagnostic_firmware_git_word_0" />
+              <state_interface name="diagnostic_firmware_git_word_1" />
+              <state_interface name="diagnostic_firmware_git_word_2" />
+              <state_interface name="diagnostic_firmware_git_word_3" />
+              <state_interface name="diagnostic_firmware_git_word_4" />
+              <state_interface name="diagnostic_raw_status"/>
+              <state_interface name="diagnostic_busy"/>
+              <state_interface name="diagnostic_grip_detected"/>
+              <state_interface name="diagnostic_sample_sequence"/>
+              <state_interface name="diagnostic_age"/>
+              <state_interface name="diagnostic_command_force"/>
+              <state_interface name="diagnostic_command_force_valid"/>
+              <state_interface name="diagnostic_measured_force"/>
+              <state_interface name="diagnostic_measured_force_valid"/>
+              <state_interface name="diagnostic_force_provenance"/>
+              <state_interface name="diagnostic_motor_voltage"/>
+              <state_interface name="diagnostic_motor_current"/>
+              <state_interface name="diagnostic_temperature"/>
+              <state_interface name="diagnostic_realtime_linear_velocity"/>
+              <state_interface name="diagnostic_realtime_angular_velocity"/>
+              <state_interface name="diagnostic_realtime_force"/>
+              <state_interface name="diagnostic_supply_power"/>
+              <state_interface name="diagnostic_maximum_force"/>
+              <state_interface name="diagnostic_maximum_realtime_force"/>
+              <state_interface name="diagnostic_statistics_valid"/>
+              <state_interface name="diagnostic_conventional_grip_on_time"/>
+              <state_interface name="diagnostic_power_cycles"/>
+              <state_interface name="diagnostic_conventional_grip_cycles"/>
+              <state_interface name="diagnostic_grip_detected_count"/>
+              <state_interface name="diagnostic_realtime_grip_on_time"/>
+              <state_interface name="diagnostic_rg_fingertip_offset_mm"/>
+              <state_interface name="diagnostic_rg_depth_acceleration_mm_s2"/>
+              <state_interface name="diagnostic_rg_depth_speed_mm_s"/>
+              <state_interface name="diagnostic_rg_actual_depth_mm"/>
+              <state_interface name="diagnostic_rg_actual_relative_depth_mm"/>
+              <state_interface name="diagnostic_rg_mechanism_angle_rad"/>
+              <state_interface name="diagnostic_rg_legacy_angular_velocity_rad_s"/>
+              <state_interface name="diagnostic_rg_actual_width_mm"/>
+              <state_interface name="diagnostic_rg_voltage_5v_v"/>
+              <state_interface name="diagnostic_rg_safety_24v_v"/>
+              <state_interface name="diagnostic_rg_plug_24v_v"/>
+              <state_interface name="diagnostic_rg_width_with_fingertip_mm"/>
+              <state_interface name="diagnostic_rg_error_code"/>
+            </joint>
+            <joint name="${prefix}finger_joint">
+              <state_interface name="position"/><state_interface name="velocity"/>
+              <state_interface name="measured_angular_position"/>
+              <state_interface name="measured_angular_velocity"/>
+              <state_interface name="position_valid"/><state_interface name="velocity_valid"/>
+            </joint>
+          </ros2_control>
+    </xacro:if>
+  </xacro:macro>
+</robot>

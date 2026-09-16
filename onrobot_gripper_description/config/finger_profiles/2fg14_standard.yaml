@@ -1,0 +1,16 @@
+schema_version: 1
+name: 2fg14_standard
+revision: 2
+compatible_models: [2fg14]
+task_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.0
+  maximum: 0.140
+  mapping_source: device_measured
+mechanism_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.001
+  maximum: 0.051
+attachment_frames: [left_finger_mount, right_finger_mount]

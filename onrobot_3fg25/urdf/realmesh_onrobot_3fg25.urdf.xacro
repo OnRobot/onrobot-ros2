@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<robot name="onrobot_3fg25" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ================= Xacro arguments ================= -->
+
+  <xacro:arg name="mesh_path" default="package://onrobot_3fg25/meshes"/>
+  <xacro:arg name="host" default="127.0.0.1"/>
+  <xacro:arg name="port" default="502"/>
+
+  <!-- Silicone, steel or knurled -->
+  <xacro:arg name="fingertip_material" default="silicone"/>
+
+  <!-- Position 1 is 12 mm backwards, position 2 is default, position 3 is 12 mm forwards. -->
+  <xacro:arg name="fingertip_position" default="2"/>
+
+  <!-- Joint properties -->
+  <xacro:arg name="finger_effort" default="16.47"/>
+  <xacro:arg name="finger_velocity" default="1.23"/>
+  <xacro:property name="finger_lower_limit" value="0"/>
+  <xacro:property name="finger_upper_limit" value="2.70526"/>
+
+  <!-- ================= Fingertip material and collision properties ================= -->
+
+  <xacro:if value="${'$(arg fingertip_material)' == 'silicone'}">
+    <xacro:property name="fingertip_mesh" value="Ø165_silicone_fingertip_link"/>
+    <xacro:property name="fingertip_mu" value="0.4"/>
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == 'steel'}">
+    <xacro:property name="fingertip_mesh" value="Ø13_steel_fingertip_link"/>
+    <xacro:property name="fingertip_mu" value="0.15"/>
+
+  </xacro:if>
+
+  <xacro:if value="${'$(arg fingertip_material)' == 'knurled'}">
+    <xacro:property name="fingertip_mesh" value="knurled_steel_fingertip_link"/>
+    <xacro:property name="fingertip_mesh" value="Ø13_steel_fingertip_link"/>
+    <xacro:property name="fingertip_mu" value="0.6"/>
+
+  </xacro:if>
+
+  <!-- ================= Fingertip mounting position ================= -->
+
+<!-- Position 1: 12 mm backwards -->
+  <xacro:if value="${'$(arg fingertip_position)' == '1'}">
+    <xacro:property name="fingertip_x_offset" value="-0.012"/>
+  </xacro:if>
+
+<!-- Position 2: default position -->
+  <xacro:if value="${'$(arg fingertip_position)' == '2'}">
+    <xacro:property name="fingertip_x_offset" value="0"/>
+  </xacro:if>
+
+<!-- Position 3: 12 mm forwards -->
+  <xacro:if value="${'$(arg fingertip_position)' == '3'}">
+    <xacro:property name="fingertip_x_offset" value="0.012"/>
+  </xacro:if>
+
+  <!-- ================= Shared finger base macro ================= -->
+
+  <xacro:macro name="finger_base" params="side">
+    
+    <link name="${side}_finger_base_link">
+
+    <inertial>
+      <origin 
+        xyz="1.2871E-09 4.4895E-06 0.005108" 
+        rpy="0 0 0"/>
+      <mass 
+        value="0.20122"/>
+      <inertia
+        ixx="4.0179E-05"
+        ixy="-1.8959E-12"
+        ixz="2.5759E-14"
+        iyy="3.9216E-05"
+        iyz="4.0292E-09"
+        izz="7.5207E-05"/>
+    </inertial>
+
+      <visual>
+        <origin
+          xyz="0 0 0.008"
+          rpy="0 0 ${pi}"/>
+        <geometry>
+          <mesh filename="$(arg mesh_path)/finger_base_link.dae"/>
+        </geometry>
+      </visual>
+
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh filename="$(arg mesh_path)/finger_base_link.STL"/>
+      </geometry>
+    </collision>
+    </link>
+  
+  </xacro:macro>
+
+  <!-- ================= Shared fingertip macro ================= -->
+
+  <xacro:macro name="fingertip" params="side">
+
+    <link name="${side}_fingertip_link">
+
+      <inertial>
+        <origin 
+          xyz="0.019608 -2.1641E-06 -0.011747" 
+          rpy="0 0 0"/>
+        <mass 
+          value="0.07505"/>
+        <inertia
+          ixx="4.2087E-06"
+          ixy="-2.0056E-09"
+          ixz="4.3014E-06"
+          iyy="1.3719E-05"
+          iyz="6.994E-10"
+          izz="1.1342E-05"/>
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="$(arg mesh_path)/${fingertip_mesh}.dae"/>
+        </geometry>
+      </visual>
+
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+          <mesh filename="$(arg mesh_path)/${fingertip_mesh}.STL"/>
+      </geometry>
+    </collision>
+
+    </link>
+
+    <joint name="${side}_fingertip_joint" type="fixed">
+      <origin 
+        xyz="${fingertip_x_offset} 0 0" 
+        rpy="0 0 0"/>
+      <parent link="${side}_finger_base_link"/>
+      <child link="${side}_fingertip_link"/>
+    </joint>
+
+    <gazebo reference="${side}_fingertip_link">
+      <mu1>${fingertip_mu}</mu1>
+      <mu2>${fingertip_mu}</mu2>
+    </gazebo>
+
+  </xacro:macro>
+
+  <!-- ================= Base link ================= -->
+
+  <link name="base_link">
+
+    <inertial>
+      <origin 
+        xyz="-0.00030817 6.561E-05 0.079077"
+        rpy="0 0 0"/>
+      <mass value="0.70952"/>
+      <inertia
+        ixx="0.00082218"
+        ixy="-3.3986E-07"
+        ixz="4.3329E-07"
+        iyy="0.00082782"
+        iyz="-2.8894E-07"
+        izz="0.0012893"/>
+    </inertial>
+
+    <visual>
+      <origin
+        xyz="0 0 0.0138"
+        rpy="${pi} 0 -${pi / 2}"/>
+      <geometry>
+        <mesh filename="$(arg mesh_path)/base_link.dae"/>
+      </geometry>
+    </visual>
+
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh filename="$(arg mesh_path)/base_link.STL"/>
+      </geometry>
+    </collision>
+
+  </link>
+
+  <!-- ================= Left finger base ================= -->
+
+  <xacro:finger_base side="left" />
+
+  <joint name="finger_angle" type="revolute">
+
+    <origin
+      xyz="-0.032043 -0.0185 0.1148"
+      rpy="3.1416 0 0.087266"/>
+    <parent link="base_link"/>
+    <child link="left_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+  </joint>
+  
+  <!-- ================= Left fingertip ================= -->
+
+  <xacro:fingertip side ="left"/>
+
+  <!-- ================= Right finger base ================= -->
+
+  <xacro:finger_base side="right" />
+
+  <joint name="right_finger_base_joint" type="revolute">
+
+    <origin 
+      xyz="0.032043 -0.0185 0.1148" 
+      rpy="-3.1416 0 2.1817"/>
+    <parent link="base_link"/>
+    <child link="right_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+    <mimic 
+      joint="finger_angle" 
+      multiplier="1" 
+      offset="0"/>
+  </joint>
+
+  <!-- ================= Right fingertip ================= -->
+
+  <xacro:fingertip side ="right"/>
+
+  <!-- ================= Middle finger base ================= -->
+
+  <xacro:finger_base side="middle" />
+
+  <joint name="middle_finger_base_joint" type="revolute">
+    <origin 
+      xyz="0 0.037 0.1148" 
+      rpy="3.1416 0 -2.0071"/>
+    <parent link="base_link"/>
+    <child link="middle_finger_base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="${finger_lower_limit}"
+      upper="${finger_upper_limit}"
+      effort="$(arg finger_effort)"
+      velocity="$(arg finger_velocity)"/>
+    <mimic 
+      joint="finger_angle" 
+      multiplier="1" 
+      offset="0"/>
+  </joint>
+
+  <!-- ================= Middle fingertip ================= -->
+
+  <xacro:fingertip side ="middle"/>
+
+  <!-- `grip_diameter` is the native command coordinate. The observed
+       `finger_angle` is separately exported so RViz animates the real model
+       without inventing an unvalidated diameter-to-angle mapping. -->
+  <link name="grip_diameter_control_link"/>
+  <joint name="grip_diameter" type="prismatic">
+    <parent link="base_link"/><child link="grip_diameter_control_link"/>
+    <axis xyz="1 0 0"/><limit lower="0" upper="0.160" effort="100" velocity="1"/>
+  </joint>
+  <ros2_control name="OnRobot3FG25System" type="system">
+    <hardware>
+      <plugin>onrobot_gripper_hardware/OnRobotThreeFingerSystem</plugin>
+      <param name="model">3fg25</param><param name="transport">tcp</param>
+      <param name="host">$(arg host)</param><param name="port">$(arg port)</param>
+      <param name="slave_id">65</param><param name="default_force_percent">20.0</param>
+      <!-- The device angle increases while this URDF's visible joint closes. -->
+      <param name="urdf_finger_angle_scale">-1.0</param>
+      <param name="urdf_finger_angle_offset">2.70526</param>
+      <param name="urdf_finger_angle_minimum">${finger_lower_limit}</param>
+      <param name="urdf_finger_angle_maximum">${finger_upper_limit}</param>
+      <param name="fingertip_position">$(arg fingertip_position)</param>
+      <param name="poll_period_ms">20</param>
+    </hardware>
+    <joint name="grip_diameter">
+      <command_interface name="position"/><command_interface name="effort"/>
+      <state_interface name="position"/><state_interface name="velocity"/>
+      <!-- Native live limits in metres, surfaced on /dynamic_joint_states. -->
+      <state_interface name="minimum_external_diameter"/>
+      <state_interface name="maximum_external_diameter"/>
+      <state_interface name="task_position_valid"/>
+      <state_interface name="force_valid"/>
+      <state_interface name="busy"/>
+      <state_interface name="grip_detected"/>
+      <state_interface name="active_mode"/>
+      <state_interface name="connection_state"/>
+      <state_interface name="faulted"/>
+      <state_interface name="fault_code"/>
+      <state_interface name="firmware_qualification"/>
+      <state_interface name="sample_sequence"/>
+      <state_interface name="sample_age"/>
+      <state_interface name="successful_cycles"/>
+      <state_interface name="failed_cycles"/>
+      <state_interface name="missed_deadlines"/>
+      <state_interface name="watchdog_stops"/>
+      <state_interface name="reconnects"/>
+      <state_interface name="last_cycle_duration"/>
+      <state_interface name="diagnostic_status_valid"/>
+      <state_interface name="diagnostic_raw_status"/>
+      <state_interface name="diagnostic_busy"/>
+      <state_interface name="diagnostic_grip_detected"/>
+      <state_interface name="diagnostic_sample_sequence"/>
+      <state_interface name="diagnostic_age"/>
+      <state_interface name="diagnostic_force_percent"/>
+      <state_interface name="diagnostic_finger_angle_rad"/>
+      <state_interface name="diagnostic_diameter_mm"/>
+      <state_interface name="diagnostic_diameter_with_tip_offset_mm"/>
+      <state_interface name="diagnostic_voltage_24v_v"/>
+      <state_interface name="diagnostic_motor_current"/>
+      <state_interface name="diagnostic_temperature"/>
+      <state_interface name="diagnostic_minimum_external_aperture_mm"/>
+      <state_interface name="diagnostic_maximum_external_aperture_mm"/>
+      <state_interface name="diagnostic_minimum_internal_aperture_mm"/>
+      <state_interface name="diagnostic_maximum_internal_aperture_mm"/>
+      <state_interface name="diagnostic_current_external_aperture_mm"/>
+      <state_interface name="diagnostic_current_internal_aperture_mm"/>
+      <state_interface name="diagnostic_fingertip_offset_mm"/>
+      <state_interface name="diagnostic_boost_power_limit_w"/>
+      <state_interface name="diagnostic_three_finger_force_grip_detected"/>
+      <state_interface name="diagnostic_three_finger_calibration_valid"/>
+      <state_interface name="diagnostic_three_finger_grip_lost"/>
+      <state_interface name="diagnostic_three_finger_position"/>
+    </joint>
+    <joint name="finger_angle">
+      <state_interface name="position"/><state_interface name="velocity"/>
+      <state_interface name="measured_angular_position"/>
+      <state_interface name="measured_angular_velocity"/>
+      <state_interface name="position_valid"/>
+      <state_interface name="velocity_valid"/>
+    </joint>
+  </ros2_control>
+
+</robot>

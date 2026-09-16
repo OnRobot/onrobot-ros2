@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<library path="onrobot_gripper_hardware">
+  <class
+    name="onrobot_gripper_hardware/OnRobotIsaacSystem"
+    type="onrobot_gripper_hardware::OnRobotIsaacSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ROS 2 task-coordinate adapter for the physical articulation of 2FG7, 2FG14, RG2, and RG6 assets in Isaac Sim.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_hardware/OnRobotParallelGripperFakeSystem"
+    type="onrobot_gripper_hardware::OnRobotParallelGripperFakeSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Model-aware fake backend for 2FG7, 2FG14, RG2, and RG6 task and visual coordinates.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_hardware/OnRobotGripperSystem"
+    type="onrobot_gripper_hardware::OnRobotGripperSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Standard ros2_control position/effort hardware adapter for OnRobot 2FG7 and 2FG14 grippers.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_hardware/OnRobotRgSystem"
+    type="onrobot_gripper_hardware::OnRobotRgSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Standard ros2_control aperture/force hardware adapter for conventional OnRobot RG2 and RG6 grippers.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_hardware/OnRobotThreeFingerSystem"
+    type="onrobot_gripper_hardware::OnRobotThreeFingerSystem"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Native ros2_control external-diameter adapter for OnRobot 3FG15 and 3FG25 grippers.
+    </description>
+  </class>
+</library>

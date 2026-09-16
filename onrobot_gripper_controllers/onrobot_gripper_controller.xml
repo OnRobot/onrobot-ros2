@@ -1,0 +1,34 @@
+<library path="onrobot_gripper_controller">
+  <class
+    name="onrobot_gripper_controllers/ParallelGripperActionController"
+    type="onrobot_gripper_controllers::ParallelGripperActionController"
+    base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Standard ParallelGripperCommand action with explicit device Stop on cancel and preemption.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_controllers/GripperRecoveryController"
+    type="onrobot_gripper_controllers::GripperRecoveryController"
+    base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Motion-resource-independent explicit fault recovery service controller.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_controllers/OnRobotRealtimeController"
+    type="onrobot_gripper_controllers::OnRobotRealtimeController"
+    base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Resource-claimed semantic realtime controller for OnRobot 2FG and RG grippers.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_controllers/GripperStateBroadcaster"
+    type="onrobot_gripper_controllers::GripperStateBroadcaster"
+    base_class_type="controller_interface::ControllerInterface">
+    <description>
+      State-only model-neutral gripper state and diagnostics broadcaster.
+    </description>
+  </class>
+</library>

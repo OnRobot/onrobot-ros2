@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "qualification_id": "2fg14-kinematic-isaac-sim-6.0.1-2026-09-01",
+  "model": "2fg14",
+  "asset_revision": "3.0",
+  "fidelity": "kinematic",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy"
+  },
+  "source_artifact": {
+    "filename": "2fg14_kinematic_qualification.json",
+    "sha256": "d608a4138a6a682f9f114f0048b54ff57755dd220252b9d927964d4924305656",
+    "started_at": "2026-09-01T19:37:42.422800+00:00",
+    "finished_at": "2026-09-01T19:38:28.483602+00:00"
+  },
+  "articulation_source_artifact": {
+    "filename": "2fg14_articulation.json",
+    "sha256": "75efcbc04e0f885b2c6d2d969fe3d57c1b322ec94ea8384f489fe03a13d91280",
+    "status": "passed",
+    "dof_names": [
+      "finger_stroke",
+      "left_finger_base_joint"
+    ],
+    "tests": {
+      "closed": "passed",
+      "midpoint": "passed",
+      "open": "passed"
+    },
+    "maximum_target_error_m": 4.097819326920327e-9,
+    "maximum_mimic_error_m": 1.862645149230957e-9
+  },
+  "status": "passed",
+  "tests": {
+    "clock_namespace_and_live_state": "passed",
+    "conventional_open_midpoint_close": "passed",
+    "conventional_cancel_holds": "passed",
+    "state_stream_outage_and_bridge_recovery": "passed",
+    "switch_to_realtime_controller": "passed",
+    "realtime_position": "passed",
+    "realtime_velocity_endpoint_hold": "passed",
+    "realtime_stale_command_watchdog": "passed",
+    "force_remains_unavailable": "passed"
+  },
+  "measurements": {
+    "task_closed_m": 0.0,
+    "task_midpoint_m": 0.06944,
+    "task_open_m": 0.14,
+    "physical_closed_m": 0.0,
+    "physical_midpoint_m": 0.0124,
+    "physical_open_m": 0.025,
+    "cancel_drift_m": 0.0,
+    "endpoint_minimum_recent_m": 0.14,
+    "watchdog_hold_drift_m": 0.0,
+    "observed_state_stream_outage_s": 0.713600877999852,
+    "force_valid": false
+  },
+  "limitations": [
+    "Contact and grasp behavior are not yet qualified.",
+    "Drive stiffness and damping are recorded but not qualified.",
+    "Simulated force remains unavailable.",
+    "RViz and physical-hardware agreement require a separate operator-observed qualification.",
+    "This evidence applies only to the declared asset and runtime revisions."
+  ]
+}

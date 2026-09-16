@@ -1,0 +1,16 @@
+schema_version: 2
+name: rg2_stock_geometry
+revision: 1
+model: rg2
+geometry_identity: rg2-standard-inward-cad-v1
+mechanism_coordinate: {dimension: angular, unit: rad, minimum: -0.04547021241699715, maximum: 1.2681310528404652}
+joint_coordinate: {dimension: angular, unit: rad, minimum: 0.0, maximum: 1.3136012652574625}
+task_coordinate: {dimension: linear, unit: m, minimum: 0.0, maximum: 0.10110000000000001}
+law:
+  type: rg_sine
+  length: 0.055
+  thickness: 0.005
+  compensation: 0.0075
+  scale: 1.0
+  theta_reference: -0.04547021241699715
+contact_offsets: {left: 0.00445, right: 0.00445}

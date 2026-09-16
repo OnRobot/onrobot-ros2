@@ -1,0 +1,26 @@
+schema_version: 2
+name: synthetic_2fg7
+revision: 1
+model: 2fg7
+geometry_identity: r08-test-fixture
+mechanism_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.001
+  maximum: 0.039
+joint_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.0
+  maximum: 0.019
+task_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.0
+  maximum: 0.039
+law:
+  type: two_fg_linear
+  m0: 0.001
+contact_offsets:
+  left: 0.0
+  right: 0.0

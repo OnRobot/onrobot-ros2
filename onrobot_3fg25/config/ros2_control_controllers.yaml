@@ -1,0 +1,25 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    diameter_controller:
+      type: forward_command_controller/ForwardCommandController
+    three_finger_limit_broadcaster:
+      type: state_interfaces_broadcaster/StateInterfacesBroadcaster
+
+joint_state_broadcaster:
+  ros__parameters:
+    # Publish the nonstandard live limit interfaces used by the 3FG RViz panel.
+    publish_dynamic_joint_states: true
+
+three_finger_limit_broadcaster:
+  ros__parameters:
+    interfaces:
+      - grip_diameter/minimum_external_diameter
+      - grip_diameter/maximum_external_diameter
+
+diameter_controller:
+  ros__parameters:
+    joints: [grip_diameter]
+    interface_name: position

@@ -1,0 +1,16 @@
+schema_version: 1
+name: rg6_standard
+revision: 1
+compatible_models: [rg6]
+task_coordinate:
+  dimension: linear
+  unit: m
+  minimum: 0.0
+  maximum: 0.160
+  mapping_source: device_compensated
+mechanism_coordinate:
+  dimension: angular
+  unit: rad
+  minimum: 0.0
+  maximum: 1.1928
+attachment_frames: [left_finger_mount, right_finger_mount]

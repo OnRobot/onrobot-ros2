@@ -1,0 +1,52 @@
+schema_version: 2
+description: >-
+  Schema for model-specific authored and resolved coordinate profiles with
+  explicit physical laws, domains, contact offsets, and derived guards.
+required:
+  - schema_version
+  - name
+  - revision
+  - model
+  - task_coordinate
+  - mechanism_coordinate
+  - joint_coordinate
+  - law
+optional:
+  - compatible_models
+  - contact_offsets
+  - safe_aperture
+  - geometry_identity
+  - base_profile
+  - profile_hash
+  - source_profile
+  - resolved
+  - aperture_domain
+  - safe_q_domain
+  - physical_joint
+  - task_joint
+coordinate_dimensions:
+  - linear
+  - angular
+coordinate_units:
+  linear: m
+  angular: rad
+mapping_sources:
+  - device_measured
+  - device_compensated
+  - declarative
+attachment_frame_contract:
+  - left_finger_mount
+  - right_finger_mount
+law_types:
+  - two_fg_linear
+  - rg_sine
+custom_profile_overrides:
+  - contact_offsets
+  - safe_aperture
+  - geometry_identity
+units:
+  task_coordinate: m
+  two_fg_mechanism_coordinate: m
+  rg_mechanism_coordinate: rad
+  two_fg_joint_coordinate: m
+  rg_joint_coordinate: rad

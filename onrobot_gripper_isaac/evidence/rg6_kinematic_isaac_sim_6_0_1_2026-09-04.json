@@ -1,0 +1,78 @@
+{
+  "articulation_path": "/onrobot_rg6",
+  "articulation_probe": {
+    "root_applied_schemas": [
+      "PhysxArticulationAPI",
+      "PhysicsArticulationRootAPI",
+      "GeomModelAPI",
+      "IsaacRobotAPI"
+    ],
+    "root_body0_targets": [],
+    "root_body1_targets": [],
+    "root_prim_type": "Xform",
+    "root_prim_valid": true,
+    "standard_articulation_roots": [
+      "/onrobot_rg6"
+    ]
+  },
+  "asset": "assets/rg6/onrobot_rg6.usda",
+  "asset_files_sha256": {
+    "onrobot_rg6.usda": "5c9faa919346d2c85d5c3cd6e2b27b69ffabadca15aabdb8550f29a2ccfd68bb",
+    "payloads/Physics/mujoco.usda": "48abc3576f359d111d3127d56a968ebb94fe589e7e7c50da7c33441c3c3230ee",
+    "payloads/Physics/physics.usda": "6da37f21e801702c28d60d8543f7df9d9653dc4b0f0a918cccbe015ea4a97d55",
+    "payloads/Physics/physx.usda": "2af6d5b8d8c7d99bf251b910977009b97fd01e6f31a7497fdf85f4528b579f8e",
+    "payloads/Physics/physx_parallel_grip.usda": "2af6d5b8d8c7d99bf251b910977009b97fd01e6f31a7497fdf85f4528b579f8e",
+    "payloads/Physics/physx_parallel_grip_tip_contact.usda": "52b3f409381e64f9d592deae534bf6083d0a99bc40fe036ad8de65e4f6043ed4",
+    "payloads/base.usda": "504260651f283658476acacb9bc100eced38ddfacd533eb0d0ed35f8f8b35183",
+    "payloads/geometries.usd": "05483caeb2ab33cff25bf43c091a8adc3be54303b796b92eafe8f87514ade22c",
+    "payloads/instances.usda": "444e2d6067b81ca2db8524cca0b4759ee9677cc571a6159e8eb6c168b12db25b",
+    "payloads/materials.usda": "1b0686c33cac3e46f5a7568c06e2ad68ce6e04c85288ecf87824250239d01cc6",
+    "payloads/robot.usda": "472a4cb607c4ccb2632238624631142fbb434e6657dd0ede6995a83737758276"
+  },
+  "coordinate_dimension": "angular",
+  "coordinate_unit": "rad",
+  "dof_names": [
+    "finger_joint",
+    "right_inner_proximal_finger_joint",
+    "left_outer_proximal_finger_joint",
+    "left_inner_proximal_joint",
+    "right_finger_base_link",
+    "left_finger_base_joint",
+    "right_finger_cover_joint",
+    "left_finger_cover_joint"
+  ],
+  "elapsed_s": 11.419357432001561,
+  "endpoint_scope": "unconstrained-articulation; default contact variant is qualified separately",
+  "isaac_sim_version": "6.0.1",
+  "model": "rg6",
+  "physics_backend": "physx",
+  "physics_dt_s": 0.008333333333333333,
+  "physics_variant": "physx_parallel_grip",
+  "status": "passed",
+  "tests": [
+    {
+      "followers": {},
+      "measured": 1.7857799150533538e-07,
+      "name": "closed",
+      "passed": true,
+      "target": 0.0,
+      "target_error": 1.7857799150533538e-07
+    },
+    {
+      "followers": {},
+      "measured": 0.5964126586914062,
+      "name": "midpoint",
+      "passed": true,
+      "target": 0.5964,
+      "target_error": 1.2658691406208789e-05
+    },
+    {
+      "followers": {},
+      "measured": 1.1928001642227173,
+      "name": "open",
+      "passed": true,
+      "target": 1.1928,
+      "target_error": 1.642227172027333e-07
+    }
+  ]
+}

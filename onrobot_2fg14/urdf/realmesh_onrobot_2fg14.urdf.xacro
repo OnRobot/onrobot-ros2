@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="onrobot_2fg14" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find onrobot_2fg14)/urdf/onrobot_2fg14_realmesh_macro.xacro"/>
+  <xacro:onrobot_2fg14_realmesh
+    backend="$(arg backend)"
+    host="$(arg host)"
+    port="$(arg port)"
+    transport="$(arg transport)"
+    serial_device="$(arg serial_device)"
+    baud_rate="$(arg baud_rate)"
+    rtu_parity="$(arg rtu_parity)"
+    slave_id="$(arg slave_id)"
+    connect_timeout_ms="$(arg connect_timeout_ms)"
+    read_timeout_ms="$(arg read_timeout_ms)"
+    write_timeout_ms="$(arg write_timeout_ms)"
+    include_task_coordinate="$(arg include_task_coordinate)"
+    include_ros2_control="$(arg include_ros2_control)"/>
+</robot>

@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "model": "rg6",
+  "asset_revision": "3.0",
+  "asset_entrypoint": "assets/rg6/onrobot_rg6.usda",
+  "runtime": {
+    "tested_isaac_sim_versions": [
+      "6.0.1"
+    ],
+    "version_policy": "feature-gated",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy",
+    "runtime_validation": "kinematic-automated-passed",
+    "fidelity": "dynamic-contact"
+  },
+  "usd": {
+    "default_prim": "onrobot_rg6",
+    "meters_per_unit": 1,
+    "articulation_root": "/onrobot_rg6",
+    "actuated_joint": "finger_joint",
+    "coordinate_dimension": "angular",
+    "coordinate_unit": "rad",
+    "lower_limit": 0,
+    "upper_limit": 1.1928,
+    "maximum_velocity": 0.8492845886,
+    "maximum_drive_torque_nm": 16.17,
+    "mimic_joints": [
+      {
+        "name": "left_finger_base_joint",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "left_finger_cover_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "left_inner_proximal_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "left_outer_proximal_finger_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "right_finger_base_link",
+        "axis": "rotZ",
+        "gearing": 1
+      },
+      {
+        "name": "right_finger_cover_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      },
+      {
+        "name": "right_inner_proximal_finger_joint",
+        "axis": "rotZ",
+        "gearing": -1
+      }
+    ]
+  },
+  "ros": {
+    "task_joint": "grip_stroke",
+    "mechanism_joint": "finger_joint",
+    "task_minimum_m": 0,
+    "task_maximum_m": 0.16,
+    "mechanism_minimum_rad": 0,
+    "mechanism_maximum_rad": 1.1928,
+    "mapping_source": "device_compensated"
+  },
+  "custom_fingers": {
+    "right_anchor": "/onrobot_rg6/Geometry/right_finger_base_link",
+    "left_anchor": "/onrobot_rg6/Geometry/left_finger_base_link",
+    "right_fixed_joint": "/onrobot_rg6/Physics/right_finger_tip_joint",
+    "left_fixed_joint": "/onrobot_rg6/Physics/left_finger_tip_joint",
+    "geometry_and_physics_owner": "user"
+  },
+  "collision_model": {
+    "default_variant": "physx_parallel_grip",
+    "tip_contact_test_variant": "physx_parallel_grip_tip_contact",
+    "unconstrained_articulation_test_variant": "physx_parallel_grip",
+    "default_self_collision": false,
+    "self_collision": true,
+    "fingertip_static_friction": 0.6,
+    "fingertip_dynamic_friction": 0.5,
+    "fingertip_friction_combine_mode": "average",
+    "fingertip_restitution": 0,
+    "fingertip_contact_proxy": {
+      "type": "closed-box",
+      "source": "visible-pad-contact-face-with-rigid-fingertip-backing",
+      "size_m": [
+        0.037,
+        0.025,
+        0.0114
+      ],
+      "center_m": [
+        0,
+        0.0001,
+        -0.0007
+      ],
+      "contact_face_local_z_m": 0.005,
+      "disabled_imported_collision": "fingertip_standard_link_1"
+    },
+    "tip_to_tip_contact": true,
+    "hard_contact_stability": "five-cycles-passed-isaac-sim-6.0.1"
+  },
+  "qualification": {
+    "status": "physics-passed-hil-pending",
+    "articulation_endpoints": "automated-passed",
+    "automated_kinematic_regression": "pending",
+    "dynamic_contact": "five-cycles-automated-passed",
+    "kinematic_evidence": "evidence/rg6_kinematic_isaac_sim_6_0_1_2026-09-04.json",
+    "tip_contact_evidence": "evidence/rg6_tip_contact_isaac_sim_6_0_1_2026-09-04.json",
+    "physical_motion_showcase": "automated-passed",
+    "physical_motion_proof": {
+      "isaac_sim_version": "6.0.1",
+      "payload_kg": 6,
+      "physics_hz": 480,
+      "hold_control": "position",
+      "external_forces_every_iteration": true,
+      "replay": false,
+      "asset_manifest_sha256": "90d5e51ee8490ac5e5771965ff714b20e48070ed023ce1a7a0d9771d1e1b1e30",
+      "config_sha256": "e4a308e1a4695a6dd123b9811608e0fa15b90be5690dcbacf688c35ecc7fd8b3",
+      "runner_sha256": "11d393c92e907babbf5c3236756c210886c9fe7d4e6a5c192326b9effef084a8",
+      "runtime_manifest_sha256": "2037c27810f59c6835aaa7c8e8211f228b3aac8e0acede4f60ac432479e044c0",
+      "report_sha256": "e80c20826b5113e7dca84ed4c4dde0fe964e58c52cdbd4d4da0eca75a982ed7b",
+      "scope": "supported acquisition followed by actuated diagonal lift/shake; not table pickup/setdown or hardware-force calibration"
+    },
+    "robot_free_workpiece": {
+      "status": "passed",
+      "isaac_sim_version": "6.0.1",
+      "cube_size_m": 0.062,
+      "payload_kg": 0.712,
+      "pickup_setdown_cycles": 3,
+      "swing_amplitude_deg": 20,
+      "swing_frequency_hz": 1.5,
+      "swing_cycles": 5,
+      "object_static_friction": 0.6,
+      "object_dynamic_friction": 0.5,
+      "pad_material_override": false,
+      "asset_manifest_sha256": "90d5e51ee8490ac5e5771965ff714b20e48070ed023ce1a7a0d9771d1e1b1e30",
+      "runner_sha256": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+      "runtime_script_files_sha256": {
+        "grip_drive_control.py": "b216d514568422648a31aef5a9b9b897b0f684e71a22c314b90b3ab307ce3061",
+        "isaac_model_contract.py": "244e370e9adf6e0232859138f54ca2ab6278c146341ea1edb6106bb20cd74d19",
+        "isaac_runtime_compat.py": "bc2e7fb2f34dd362b58b6176083ba18648853ab5194ec966e2a0bc998adc7bce",
+        "run_payload_retention_test.py": "9ed52f3e83b593bf2ea63f6dcbdce4a0c273897ecd45389cf904ac14b1bd9075",
+        "run_workpiece_showcase.py": "9b5f0830f850ba5a45fcd35b4980e4b8ba1a2184ee2aac6929151c07c13734fa",
+        "showcase_branding.py": "6d8c9be74950105ae1198780e31366b45e53e20f2353e5377ac42fcd72a534a9"
+      },
+      "report_sha256": "3b4c257f4ee66c47ffc9e91c7edad8f9d3779eb08993383c7b8ffe9aa22bf852",
+      "physics_hz": 480,
+      "external_forces_every_iteration": true,
+      "hold_control": "position",
+      "scope": "table pickup, pendulum, setdown and release; not rated-payload or force calibration"
+    },
+    "hardware_in_loop": "pending"
+  },
+  "drive_tuning": {
+    "maximum_drive_torque_nm": 16.17,
+    "stiffness": 1.74532925,
+    "damping": 0.4571296862,
+    "stiffness_si": 100,
+    "damping_si": 26.1916017074,
+    "angular_gain_units": "USD per degree; SI per radian",
+    "armature_kg_m2": 1.715,
+    "armature_status": "firmware motor-model inertia reflected through gearing; not unit-identified",
+    "motor_inertia_reference_kg_m2": 0.0000035,
+    "gear_ratio_reference": 700,
+    "source": "table pickup and pendulum retention with a loaded Jacobian force-balance check",
+    "status": "provisional",
+    "qualified": false
+  },
+  "mimic_constraint_tuning": {
+    "natural_frequency_hz": 5000,
+    "damping_ratio": 1,
+    "source": "critically damped linkage with bounded drive gains",
+    "status": "workpiece-and-five-cycle-hard-contact-tested",
+    "qualified": false
+  },
+  "layers": {
+    "assets/rg6/onrobot_rg6.usda": "a4a48c818d640d4d800ced27a6184d5e5acce9ccb24051e3c6a95649d87e338a",
+    "assets/rg6/payloads/base.usda": "e42a72111686ec847776546a076da704eb3660801124db184b13cb9856d7b5b5",
+    "assets/rg6/payloads/geometries.usd": "05483caeb2ab33cff25bf43c091a8adc3be54303b796b92eafe8f87514ade22c",
+    "assets/rg6/payloads/instances.usda": "5e9f72df840d442d86e1537342795dd214e7694620de80f33e65300b0689427d",
+    "assets/rg6/payloads/materials.usda": "3d22a77973597083502746607996dce5fb9dd7f4cdef9187c4859fdf47d92942",
+    "assets/rg6/payloads/robot.usda": "94647c37fdc5b8436c11e0fce78dc403eadb693ce1083d31363bbc07189558ce",
+    "assets/rg6/payloads/Physics/physics.usda": "e2eb6aee964b7f475f5f52350803aedd96cfcd63f97cea0d32042bd670ef020f",
+    "assets/rg6/payloads/Physics/physx.usda": "697fa017d766b7e77c3108af90c904cd80efc52541c1bcab255d82b6b5676f25",
+    "assets/rg6/payloads/Physics/physx_parallel_grip.usda": "697fa017d766b7e77c3108af90c904cd80efc52541c1bcab255d82b6b5676f25",
+    "assets/rg6/payloads/Physics/physx_parallel_grip_tip_contact.usda": "ddc0b66972802dcd3c95697c08a737d6b6af10a2e50af0517b4f5b8d04c67938",
+    "assets/rg6/payloads/Physics/mujoco.usda": "129369a26615de7b78f2c142a08e2a3b3e4a1eac2fff90d539178af58f444447"
+  }
+}

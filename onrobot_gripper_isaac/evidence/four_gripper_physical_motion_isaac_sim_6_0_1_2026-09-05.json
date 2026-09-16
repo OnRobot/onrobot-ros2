@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "qualification_id": "four-gripper-physical-motion-isaac-sim-6.0.1-2026-09-05",
+  "fidelity": "live-physx-full-rated-payload-motion",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx"
+  },
+  "runner_sha256": "3a84bc5e1e575c41f321675fd8a2fd1cd647059403e77df70a9235dd83c24c09",
+  "config_sha256": "9a72ded78748472cfe36e2b765ad9d2f26cf5d7a4a5bcfe9829d490c5f6ed39e",
+  "matrix_validation_sha256": "8b1530dda08f12feb4c368ec7236b7ff2fdb975f27d4e5b4113a1551efcfa0fc",
+  "status": "passed",
+  "cases": {
+    "2fg7": {
+      "payload_mass_kg": 7.0,
+      "source_report_sha256": "302cb76b57b2b4b23b7a8fb373ffda8d0d23d3af85576868f9c8041d0c7c83f1",
+      "status": "passed"
+    },
+    "2fg14": {
+      "payload_mass_kg": 14.0,
+      "source_report_sha256": "b229cf4496ff4b8ab32a2b18d5a11997a03ad725617ae45c5b6c7bf5a4150968",
+      "status": "passed"
+    },
+    "rg2": {
+      "payload_mass_kg": 2.0,
+      "source_report_sha256": "61b95ba7db7e3b036315a52aa063cbf8387d3e9dbfff51bac341786bb50d2c21",
+      "status": "passed"
+    },
+    "rg6": {
+      "payload_mass_kg": 6.0,
+      "source_report_sha256": "aca65ba0d46670ec954f8db8d534f0dff856d9bab41d470eb1497fa69f4d9825",
+      "status": "passed"
+    }
+  },
+  "acceptance": {
+    "live_physics_not_replay": true,
+    "diagonal_lift_and_shake": true,
+    "payload_retained": true,
+    "product_joint_stability": true,
+    "recording_and_keyframes_validated": true,
+    "exact_runner_config_and_assets_validated": true
+  },
+  "limitations": [
+    "The result applies only to the exact runner, configuration, assets, runtime, reference fingers, workpieces, and motion profile recorded by the source reports.",
+    "It does not calibrate simulated force or establish arbitrary-object, custom-finger, or robot-arm performance.",
+    "The original reports and recorded frames remain the detailed evidence artifacts."
+  ]
+}

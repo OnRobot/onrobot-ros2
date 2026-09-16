@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "qualification_id": "2fg7-dynamic-contact-isaac-sim-6.0.1-2026-09-01",
+  "model": "2fg7",
+  "asset_revision": "3.0",
+  "fidelity": "dynamic-contact",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "physics_dt_s": 0.004166666666666667,
+    "solver_type": "TGS"
+  },
+  "source_artifact": {
+    "filename": "2fg7_dynamic_contact.json",
+    "sha256": "1fca6f5399a3b141346055c69eb57a20d62fa926abbe5a4ae03ff4c49b8d13bf",
+    "config_sha256": "6bc270ce3c670cb29da238911ed1f3078ce48209753852bf18f15cb61a728678",
+    "elapsed_s": 138.2707415800014
+  },
+  "scope": {
+    "reference_fingers": "standard-silicone-outwards",
+    "object_id": "external_pinch_block_v1",
+    "trial_count": 5
+  },
+  "drive": {
+    "stiffness": 150.0,
+    "damping": 5.0,
+    "maximum_force_n": 140.0,
+    "qualified": false
+  },
+  "status": "passed",
+  "checks": {
+    "bilateral_contact_maintained": "passed-5-of-5",
+    "bilateral_contact_maintained_during_preload": "passed-5-of-5",
+    "bilateral_object_contact_acquired": "passed-5-of-5",
+    "contact_force_finite_and_bounded": "passed-5-of-5",
+    "contact_sensors_valid": "passed-5-of-5",
+    "hold_drop_bounded": "passed-5-of-5",
+    "hold_lateral_drift_bounded": "passed-5-of-5",
+    "hold_rotation_bounded": "passed-5-of-5",
+    "object_angular_speed_bounded": "passed-5-of-5",
+    "object_blocks_target_before_endpoint": "passed-5-of-5",
+    "object_displacement_bounded": "passed-5-of-5",
+    "object_speed_bounded": "passed-5-of-5",
+    "object_state_finite": "passed-5-of-5",
+    "release_loses_contact": "passed-5-of-5",
+    "release_target_reached": "passed-5-of-5"
+  },
+  "measurements": {
+    "contact_acquired_step_range": [88, 89],
+    "contact_target_m_range": [0.00869999999999994, 0.008724999999999941],
+    "grasp_position_m_range": [0.009087998420000076, 0.00908822100609541],
+    "peak_contact_force_n_range": [0.6816672682762146, 0.6895794868469238],
+    "minimum_bilateral_contact_fraction": 1.0,
+    "minimum_preload_bilateral_contact_fraction": 1.0,
+    "maximum_hold_drop_m": 1.341104507446289e-7,
+    "maximum_hold_lateral_drift_m": 6.256695373391824e-7,
+    "maximum_hold_rotation_rad": 0.0,
+    "maximum_object_speed_m_s": 0.0004985802820934336,
+    "maximum_object_angular_speed_rad_s": 0.03361740566465201,
+    "maximum_object_displacement_m": 6.303970675242897e-7,
+    "release_contact_step_range": [1, 1],
+    "release_position_m_range": [0.01900000125169754, 0.01900000311434269],
+    "estimated_effective_static_friction": 0.45,
+    "estimated_minimum_normal_force_per_finger_n": 0.218,
+    "hold_force_mean_n_range": {
+      "left_fingertip": [0.681597695996364, 0.681609449038903],
+      "right_fingertip": [0.6816007263958455, 0.681606504569451]
+    }
+  },
+  "contact_pairs": {
+    "left_fingertip": [
+      "/onrobot_2fg7/Geometry/left_fingertip_link",
+      "/onrobot_dynamic_contact/reference_object"
+    ],
+    "right_fingertip": [
+      "/onrobot_2fg7/Geometry/right_fingertip_link",
+      "/onrobot_dynamic_contact/reference_object"
+    ]
+  },
+  "limitations": [
+    "This evidence applies only to the declared asset, runtime, supplied outward-facing silicone fingers, and reference object revisions.",
+    "Drive gains were stable in this scenario but are not calibrated or generally qualified.",
+    "Contact force is an uncalibrated physics observation and is not exposed as a valid simulated gripper force measurement.",
+    "User-authored finger geometry and physics require separate validation."
+  ]
+}

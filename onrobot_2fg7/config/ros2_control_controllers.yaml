@@ -1,0 +1,76 @@
+/**/controller_manager:
+  ros__parameters:
+    # Modbus I/O runs in the hardware worker. The controller-manager callback
+    # copies only the latest command/state images, so this rate is independent
+    # of normal transport latency.
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    gripper_controller:
+      type: onrobot_gripper_controllers/ParallelGripperActionController
+
+    realtime_controller:
+      type: onrobot_gripper_controllers/OnRobotRealtimeController
+    recovery_controller:
+      type: onrobot_gripper_controllers/GripperRecoveryController
+
+    parallel_gripper_limit_broadcaster:
+      type: state_interfaces_broadcaster/StateInterfacesBroadcaster
+    gripper_state_broadcaster:
+      type: onrobot_gripper_controllers/GripperStateBroadcaster
+
+/**/gripper_controller:
+  ros__parameters:
+    joint: grip_stroke
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    action_monitor_rate: 20.0
+    goal_tolerance: 0.001
+    allow_stalling: true
+    stall_velocity_threshold: 0.0001
+    stall_timeout: 2.0
+    max_effort_interface: grip_stroke/effort
+    max_effort: 20.0
+    conventional_speed_control: true
+    conventional_speed_percent: 50
+
+/**/joint_state_broadcaster:
+  ros__parameters:
+    use_local_topics: true
+    joints: [grip_stroke, finger_stroke]
+    interfaces: [position, velocity]
+
+/**/realtime_controller:
+  ros__parameters:
+    joint: grip_stroke
+    mechanism_joint: finger_stroke
+    command_timeout_ms: 100
+    state_publish_rate_hz: 100.0
+
+/**/recovery_controller:
+  ros__parameters:
+    joint: grip_stroke
+
+/**/parallel_gripper_limit_broadcaster:
+  ros__parameters:
+    interfaces:
+      - grip_stroke/minimum_task_aperture
+      - grip_stroke/maximum_task_aperture
+
+/**/gripper_state_broadcaster:
+  ros__parameters:
+    model: 2fg7
+    task_joint: grip_stroke
+    mechanism_joint: finger_stroke
+    mechanism_dimension: linear
+    device_profile_revision: "1"
+    finger_profile_name: 2fg7_standard
+    finger_profile_revision: "2"
+    mapping_source: device_measured
+    publish_rate: 100.0
+    diagnostic_rate: 1.0

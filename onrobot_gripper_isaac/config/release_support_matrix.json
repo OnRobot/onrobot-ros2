@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "profile": "september-17-four-model-release",
+  "models": {
+    "2fg7": {
+      "modes": [
+        {
+          "name": "ros-isaac-kinematic",
+          "runtime": {
+            "isaac_sim_version": "6.0.1",
+            "physics_backend": "physx"
+          },
+          "historical_report": "evidence/2fg7_kinematic_isaac_sim_6_0_1_2026-08-31.json",
+          "candidate_report": "2fg7_kinematic.json",
+          "runner": "scripts/run_kinematic_qualification.py",
+          "required_tests": [
+            "clock_namespace_and_live_state",
+            "conventional_open_midpoint_close",
+            "conventional_cancel_holds",
+            "state_stream_outage_and_bridge_recovery",
+            "switch_to_realtime_controller",
+            "realtime_position",
+            "realtime_velocity_endpoint_hold",
+            "realtime_stale_command_watchdog",
+            "force_remains_unavailable"
+          ],
+          "require_loaded_control_identity": true
+        }
+      ]
+    },
+    "2fg14": {
+      "modes": [
+        {
+          "name": "ros-isaac-kinematic",
+          "runtime": {
+            "isaac_sim_version": "6.0.1",
+            "physics_backend": "physx"
+          },
+          "historical_report": "evidence/2fg14_kinematic_isaac_sim_6_0_1_2026-09-01.json",
+          "candidate_report": "2fg14_kinematic.json",
+          "runner": "scripts/run_kinematic_qualification.py",
+          "required_tests": [
+            "clock_namespace_and_live_state",
+            "conventional_open_midpoint_close",
+            "conventional_cancel_holds",
+            "state_stream_outage_and_bridge_recovery",
+            "switch_to_realtime_controller",
+            "realtime_position",
+            "realtime_velocity_endpoint_hold",
+            "realtime_stale_command_watchdog",
+            "force_remains_unavailable"
+          ],
+          "require_loaded_control_identity": true
+        }
+      ]
+    },
+    "rg2": {
+      "modes": [
+        {
+          "name": "ros-isaac-kinematic",
+          "runtime": {
+            "isaac_sim_version": "6.0.1",
+            "physics_backend": "physx"
+          },
+          "historical_report": "evidence/rg2_kinematic_isaac_sim_6_0_1_2026-09-03.json",
+          "candidate_report": "rg2_kinematic.json",
+          "runner": "scripts/run_kinematic_qualification.py",
+          "required_tests": [
+            "clock_namespace_and_live_state",
+            "conventional_open_midpoint_close",
+            "conventional_cancel_holds",
+            "state_stream_outage_and_bridge_recovery",
+            "switch_to_realtime_controller",
+            "realtime_position",
+            "realtime_velocity_endpoint_hold",
+            "realtime_stale_command_watchdog",
+            "force_remains_unavailable"
+          ],
+          "require_loaded_control_identity": true
+        }
+      ]
+    },
+    "rg6": {
+      "modes": [
+        {
+          "name": "ros-isaac-kinematic",
+          "runtime": {
+            "isaac_sim_version": "6.0.1",
+            "physics_backend": "physx"
+          },
+          "historical_report": "evidence/rg6_kinematic_isaac_sim_6_0_1_2026-09-04.json",
+          "candidate_report": "rg6_kinematic.json",
+          "runner": "scripts/run_kinematic_qualification.py",
+          "required_tests": [
+            "clock_namespace_and_live_state",
+            "conventional_open_midpoint_close",
+            "conventional_cancel_holds",
+            "state_stream_outage_and_bridge_recovery",
+            "switch_to_realtime_controller",
+            "realtime_position",
+            "realtime_velocity_endpoint_hold",
+            "realtime_stale_command_watchdog",
+            "force_remains_unavailable"
+          ],
+          "require_loaded_control_identity": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- ================= Xacro arguments ================= -->
+
+      <xacro:arg name="mesh_path" default="package://onrobot_2fg14/meshes"/>
+
+      <!-- outwards or inwards -->
+      <xacro:arg name="fingertip_orientation" default="outwards"/>
+      <xacro:arg name="use_standard_fingertips" default="true"/>
+
+      <!-- Stroke/limits -->
+      <xacro:arg name="finger_stroke" default="0.025"/>
+      <xacro:arg name="task_aperture" default="0.140"/>
+      <xacro:arg name="finger_effort" default="280"/>
+      <xacro:arg name="finger_velocity" default="0.45"/>
+
+  <xacro:macro name="onrobot_2fg14"
+               params="parent:='' prefix:='' origin_xyz:='0 0 0' origin_rpy:='0 0 0'">
+    <xacro:if value="${parent != ''}">
+      <joint name="${prefix}mount_joint" type="fixed">
+        <parent link="${parent}"/>
+        <child link="${prefix}base_link"/>
+        <origin xyz="${origin_xyz}" rpy="${origin_rpy}"/>
+      </joint>
+    </xacro:if>
+      <!-- Constants -->
+      <xacro:property name="x_pi" value="3.14159265359"/>
+      <xacro:property name="x_half_pi" value="1.57079632679"/>
+
+      <!-- ================= Fingertip friction values ================= -->
+
+      <!-- NBR fingertip friction -->
+      <xacro:property name="fingertip_mu" value="0.4"/>
+
+      <!-- ================= Fingertip orientation ================= -->
+
+      <xacro:if value="${'$(arg fingertip_orientation)' == 'outwards'}">
+        <xacro:property name="fingertip_roll_vis" value="-${x_half_pi}"/>    
+        <xacro:property name="fingertip_pitch_vis" value="0"/>
+        <xacro:property name="fingertip_yaw_vis" value="0"/>
+
+        <xacro:property name="fingertip_top_collision_xyz" value="0.029435 0 0.0125"/>
+        <xacro:property name="fingertip_bottom_collision_xyz" value="0.00335 0 0.002403"/>
+
+      </xacro:if>
+
+      <xacro:unless value="${'$(arg fingertip_orientation)' == 'outwards'}">
+        <xacro:property name="fingertip_roll_vis" value="${x_half_pi}"/>    
+        <xacro:property name="fingertip_pitch_vis" value="0"/>
+        <xacro:property name="fingertip_yaw_vis" value="0"/>
+
+        <xacro:property name="fingertip_top_collision_xyz" value="0.029435 0 -0.0125"/>
+        <xacro:property name="fingertip_bottom_collision_xyz" value="0.00335 0 -0.002403"/>
+      </xacro:unless>
+
+      
+      <!-- ================= Base link ================= -->
+
+      <link name="${prefix}base_link">
+        <inertial>
+          <origin
+            xyz="-0.00015729 3.543E-05 0.069388"
+            rpy="0 0 0" />
+          <mass value="1.4087" />
+          <inertia
+            ixx="0.0011866"
+            ixy="-1.0464E-07"
+            ixz="3.7576E-07"
+            iyy="0.0019997"
+            iyz="-2.7094E-07"
+            izz="0.0019805" />
+        </inertial>
+
+        <visual>
+          <origin
+            xyz="0 0 0.0138"
+            rpy="0 3.14159265359 1.57079632679" />
+          <geometry>
+            <mesh filename="$(arg mesh_path)/base_link.dae" />
+          </geometry>
+        </visual>
+
+        <collision>
+          <origin xyz="0 0 0.057025" rpy="0 0 0" />
+          <geometry>
+            <box size="0.115 0.070 0.11925" />
+          </geometry>
+        </collision>
+      </link>
+
+      <!-- ================= Task aperture coordinate ================= -->
+
+      <link name="${prefix}task_aperture_link"/>
+      <joint name="${prefix}grip_stroke" type="prismatic">
+        <parent link="${prefix}base_link" />
+        <child link="${prefix}task_aperture_link" />
+        <axis xyz="1 0 0" />
+        <limit lower="0" upper="$(arg task_aperture)" effort="$(arg finger_effort)" velocity="$(arg finger_velocity)" />
+      </joint>
+
+      <!-- ================= Right finger base ================= -->
+
+      <link name="${prefix}right_finger_base_link">
+        <inertial>
+          <origin
+            xyz="-0.006 -2.6252E-17 -1.5092E-15"
+            rpy="0 0 0" />
+          <mass value="0.014039" />
+          <inertia
+            ixx="4.5646E-07"
+            ixy="-5.1808E-22"
+            ixz="-1.0037E-19"
+            iyy="5.775E-07"
+            iyz="3.7117E-20"
+            izz="2.1589E-07" />
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL" />
+          </geometry>
+          <material name="">
+            <color rgba="0.75294 0.75294 0.75294 1" />
+          </material>
+        </visual>
+      </link>
+
+      <joint name="${prefix}finger_stroke" type="prismatic">
+        <origin
+          xyz="0.017995 0 0.117"
+          rpy="3.1416 -1.5708 0" />
+        <parent link="${prefix}base_link" />
+        <child link="${prefix}right_finger_base_link" />
+        <axis xyz="0 0 1" />
+        <limit
+          lower="0"
+          upper="$(arg finger_stroke)"
+          effort="$(arg finger_effort)"
+          velocity="$(arg finger_velocity)" />
+      </joint>
+
+      <!-- ================= Right fingertip ================= -->
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <link name="${prefix}right_fingertip_link">
+        <inertial>
+          <origin
+            xyz="0.01595 -2.6319E-06 0.0073333"
+            rpy="${x_pi} 0 0" />
+          <mass value="0.053363" />
+          <inertia
+            ixx="9.7475E-06"
+            ixy="4.1758E-12"
+            ixz="-2.5801E-06"
+            iyy="1.347E-05"
+            iyz="2.4036E-11"
+            izz="1.8961E-05" />
+        </inertial>
+
+        <visual>
+          <origin
+            xyz="0 0 0"
+            rpy="${fingertip_roll_vis} ${fingertip_pitch_vis} ${fingertip_yaw_vis}" />
+          <geometry>
+            <mesh filename="$(arg mesh_path)/fingertip_link.dae" />
+          </geometry>
+        </visual>
+
+        <!-- ================= Right fingertip top collision mesh ================= -->
+        <collision>
+          <origin 
+            xyz="${fingertip_top_collision_xyz}"
+            rpy="0 0 0" />
+          <geometry>
+            <box size="0.0453 0.045 0.006" />
+          </geometry>
+        </collision>
+
+        <!-- ================= Right fingertip bottom collision mesh ================= -->
+        <collision>
+          <origin 
+            xyz="${fingertip_bottom_collision_xyz}"
+            rpy="0 0 0" />
+          <geometry>
+            <box size="0.0067 0.045 0.0258" />
+          </geometry>
+        </collision>
+      </link>
+      </xacro:if>
+
+      <link name="${prefix}right_finger_mount" />
+
+      <joint name="${prefix}right_finger_mount_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="${prefix}right_finger_base_link" />
+        <child link="${prefix}right_finger_mount" />
+      </joint>
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <joint name="${prefix}right_fingertip_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="${prefix}right_finger_mount" />
+        <child link="${prefix}right_fingertip_link" />
+      </joint>
+      </xacro:if>
+
+      <!-- ================= Left finger base ================= -->
+
+      <link name="${prefix}left_finger_base_link">
+        <inertial>
+          <origin
+            xyz="-0.006 -1.3226E-17 1.5127E-15"
+            rpy="0 0 0" />
+          <mass value="0.014039" />
+          <inertia
+            ixx="4.5646E-07"
+            ixy="-3.4132E-22"
+            ixz="1.0034E-19"
+            iyy="5.775E-07"
+            iyz="3.4587E-20"
+            izz="2.1589E-07" />
+        </inertial>
+
+        <visual>
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <geometry>
+            <mesh filename="$(arg mesh_path)/finger_base_link.STL" />
+          </geometry>
+          <material name="">
+            <color rgba="0.75294 0.75294 0.75294 1" />
+          </material>
+        </visual>
+      </link>
+
+      <joint name="${prefix}left_finger_base_joint" type="prismatic">
+        <origin
+          xyz="-0.017995 0 0.117"
+          rpy="0 -1.5708 0" />
+        <parent link="${prefix}base_link" />
+        <child link="${prefix}left_finger_base_link" />
+        <axis xyz="0 0 1" />
+        <limit
+          lower="0"
+          upper="$(arg finger_stroke)"
+          effort="$(arg finger_effort)"
+          velocity="$(arg finger_velocity)" />
+        <mimic
+          joint="${prefix}finger_stroke"
+          multiplier="1.0"
+          offset="0" />
+      </joint>
+
+      <!-- ================= Left fingertip ================= -->
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <link name="${prefix}left_fingertip_link">
+        <inertial>
+          <origin
+            xyz="0.015961 -2.5916E-08 0.0073333"
+            rpy="${x_pi} 0 0" />
+          <mass value="0.053363" />
+          <inertia
+            ixx="9.7475E-06"
+            ixy="4.1758E-12"
+            ixz="-2.5801E-06"
+            iyy="1.347E-05"
+            iyz="2.4036E-11"
+            izz="1.8961E-05" />
+        </inertial>
+
+        <visual>
+          <origin
+            xyz="0 0 0"
+            rpy="${fingertip_roll_vis} ${fingertip_pitch_vis} ${fingertip_yaw_vis}" />
+          <geometry>
+            <mesh filename="$(arg mesh_path)/fingertip_link.dae" />
+          </geometry>
+        </visual>
+
+        <!-- ================= Left fingertip top collision mesh ================= -->
+        <collision>
+          <origin 
+            xyz="${fingertip_top_collision_xyz}"
+            rpy="0 0 0" />
+          <geometry>
+            <box size="0.0453 0.045 0.006" />
+          </geometry>
+        </collision>
+
+        <!-- ================= Left fingertip bottom collision mesh ================= -->
+        <collision>
+          <origin 
+            xyz="${fingertip_bottom_collision_xyz}"
+            rpy="0 0 0" />
+          <geometry>
+            <box size="0.0067 0.045 0.0258" />
+          </geometry>
+        </collision>
+      </link>
+      </xacro:if>
+
+      <link name="${prefix}left_finger_mount" />
+
+      <joint name="${prefix}left_finger_mount_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="${prefix}left_finger_base_link" />
+        <child link="${prefix}left_finger_mount" />
+      </joint>
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <joint name="${prefix}left_fingertip_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="${prefix}left_finger_mount" />
+        <child link="${prefix}left_fingertip_link" />
+      </joint>
+      </xacro:if>
+
+      <xacro:if value="$(arg use_standard_fingertips)">
+      <gazebo reference="${prefix}right_fingertip_link">
+        <mu1>${fingertip_mu}</mu1>
+        <mu2>${fingertip_mu}</mu2>
+      </gazebo>
+
+      <gazebo reference="${prefix}left_fingertip_link">
+        <mu1>${fingertip_mu}</mu1>
+        <mu2>${fingertip_mu}</mu2>
+      </gazebo>
+      </xacro:if>
+  </xacro:macro>
+</robot>

@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="$(arg robot_name)">
+  <xacro:arg name="robot_name" default="onrobot_2fg7"/>
+  <xacro:arg name="physical_joint" default="finger_stroke"/>
+  <xacro:arg name="closed_position" default="0.0"/>
+  <xacro:arg name="model" default="2fg7"/>
+  <xacro:arg name="prefix" default=""/>
+  <xacro:property name="model" value="$(arg model)"/>
+  <xacro:property name="prefix" value="$(arg prefix)"/>
+  <group name="gripper">
+    <joint name="$(arg physical_joint)"/>
+    <!-- Include dependent variables in group-state copies. These remain URDF
+         mimic joints: the group still has exactly one active variable. -->
+    <xacro:if value="${model in ['2fg7', '2fg14']}">
+      <joint name="${prefix}left_finger_base_joint"/>
+    </xacro:if>
+    <xacro:if value="${model in ['rg2', 'rg6']}">
+      <joint name="${prefix}left_outer_proximal_finger_joint"/>
+      <joint name="${prefix}left_finger_base_joint"/>
+      <joint name="${prefix}left_finger_cover_joint"/>
+      <joint name="${prefix}right_finger_cover_joint"/>
+      <joint name="${prefix}left_inner_proximal_finger_joint"/>
+      <joint name="${prefix}right_inner_proximal_finger_joint"/>
+      <xacro:if value="${model == 'rg2'}">
+        <joint name="${prefix}right_finger_base_joint"/>
+        <joint name="${prefix}left_finger_cover_arm_joint"/>
+        <joint name="${prefix}right_finger_cover_arm_joint"/>
+      </xacro:if>
+      <xacro:if value="${model == 'rg6'}">
+        <joint name="${prefix}right_finger_base_link"/>
+      </xacro:if>
+    </xacro:if>
+  </group>
+  <group_state name="closed" group="gripper">
+    <joint name="$(arg physical_joint)" value="$(arg closed_position)"/>
+  </group_state>
+  <!-- Only assembled mechanical neighbors. World-object contacts remain
+       enabled for every collision-bearing link. -->
+  <xacro:macro name="mechanical_pair" params="first second reason">
+    <disable_collisions link1="${prefix + first}" link2="${prefix + second}" reason="${reason}"/>
+  </xacro:macro>
+  <xacro:macro name="linear_side" params="side">
+    <xacro:mechanical_pair first="base_link" second="${side}_finger_base_link" reason="Adjacent"/>
+    <xacro:mechanical_pair first="${side}_finger_base_link" second="${side}_fingertip_link" reason="Adjacent"/>
+    <xacro:if value="${model == '2fg7'}">
+      <xacro:mechanical_pair first="base_link" second="${side}_fingertip_link" reason="Always"/>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:macro name="angular_side" params="side">
+    <xacro:mechanical_pair first="body_link" second="${side}_outer_proximal_finger_link" reason="Adjacent"/>
+    <xacro:mechanical_pair first="${side}_finger_base_link" second="${side}_finger_cover_link" reason="Adjacent"/>
+    <xacro:if value="${model == 'rg6'}">
+      <xacro:mechanical_pair first="${side}_finger_base_link" second="${side}_finger_tip_link" reason="Adjacent"/>
+    </xacro:if>
+    <xacro:if value="${model == 'rg2'}">
+      <xacro:mechanical_pair first="body_link" second="${side}_finger_cover_link" reason="Default"/>
+      <xacro:mechanical_pair first="${side}_finger_base_link" second="${side}_inner_proximal_finger_link" reason="Adjacent"/>
+      <xacro:mechanical_pair first="${side}_finger_cover_arm_link" second="${side}_finger_cover_link" reason="Adjacent"/>
+      <xacro:mechanical_pair first="${side}_finger_cover_arm_link" second="${side}_outer_proximal_finger_link" reason="Adjacent"/>
+      <xacro:mechanical_pair first="${side}_finger_cover_link" second="${side}_inner_proximal_finger_link" reason="Always"/>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:if value="${model in ['2fg7', '2fg14']}">
+    <xacro:linear_side side="left"/>
+    <xacro:linear_side side="right"/>
+  </xacro:if>
+  <xacro:if value="${model in ['rg2', 'rg6']}">
+    <xacro:mechanical_pair first="base_link" second="body_link" reason="Adjacent"/>
+    <xacro:angular_side side="left"/>
+    <xacro:angular_side side="right"/>
+    <!-- Mating pads may touch at the profile's closed endpoint. The strict
+         planning minimum excludes the overlapping CAD-zero range. This does
+         not disable pad collision in the physics asset or against workpieces. -->
+    <xacro:mechanical_pair first="left_finger_tip_link" second="right_finger_tip_link" reason="Default"/>
+  </xacro:if>
+</robot>

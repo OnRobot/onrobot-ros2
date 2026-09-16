@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<library path="onrobot_gripper_rviz">
+  <class
+    name="onrobot_gripper_rviz_plugins/GripperControlPanel"
+    type="onrobot_gripper_rviz_plugins::GripperControlPanel"
+    base_class_type="rviz_common::Panel">
+    <description>
+      RViz operator panel for the standard OnRobot parallel gripper action.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_rviz_plugins/ForceHistoryPanel"
+    type="onrobot_gripper_rviz_plugins::ForceHistoryPanel"
+    base_class_type="rviz_common::Panel">
+    <description>
+      Read-only OnRobot measured-force and state-history panel for live or
+      rosbag-replayed typed gripper state.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_rviz_plugins/RealtimeControlPanel"
+    type="onrobot_gripper_rviz_plugins::RealtimeControlPanel"
+    base_class_type="rviz_common::Panel">
+    <description>
+      RViz panel for guarded OnRobot realtime position and velocity control.
+    </description>
+  </class>
+  <class
+    name="onrobot_gripper_rviz_plugins/ThreeFingerControlPanel"
+    type="onrobot_gripper_rviz_plugins::ThreeFingerControlPanel"
+    base_class_type="rviz_common::Panel">
+    <description>
+      RViz operator panel for native OnRobot 3FG external-diameter control.
+    </description>
+  </class>
+</library>

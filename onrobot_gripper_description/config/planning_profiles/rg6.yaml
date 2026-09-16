@@ -1,0 +1,16 @@
+schema_version: 2
+name: rg6_stock_geometry
+revision: 1
+model: rg6
+geometry_identity: rg6-standard-inward-cad-v1
+mechanism_coordinate: {dimension: angular, unit: rad, minimum: -0.052524147149517135, maximum: 1.2453246172890498}
+joint_coordinate: {dimension: angular, unit: rad, minimum: 0.0, maximum: 1.2978487644385668}
+task_coordinate: {dimension: linear, unit: m, minimum: 0.0, maximum: 0.15}
+law:
+  type: rg_sine
+  length: 0.08
+  thickness: 0.0063
+  compensation: 0.0105
+  scale: 1.0
+  theta_reference: -0.052524147149517135
+contact_offsets: {left: 0.005, right: 0.005}

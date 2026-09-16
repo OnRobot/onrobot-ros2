@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="onrobot_2fg7_ros2_control"
+               params="backend host port transport serial_device baud_rate rtu_parity slave_id connect_timeout_ms read_timeout_ms write_timeout_ms task_aperture fake_motion_speed_m_s fake_stall isaac_joint_commands_topic isaac_joint_states_topic isaac_state_timeout_ms realtime_update_rate_hz supply_power_w:=48 conventional_speed_percent:=50 prefix:=''">
+    <ros2_control name="${prefix}OnRobot2FG7System" type="system">
+      <hardware>
+        <xacro:if value="${backend == 'real'}">
+          <plugin>onrobot_gripper_hardware/OnRobotGripperSystem</plugin>
+        </xacro:if>
+        <xacro:if value="${backend == 'fake'}">
+          <plugin>onrobot_gripper_hardware/OnRobotParallelGripperFakeSystem</plugin>
+        </xacro:if>
+        <xacro:if value="${backend == 'isaac'}">
+          <plugin>onrobot_gripper_hardware/OnRobotIsaacSystem</plugin>
+        </xacro:if>
+        <param name="model">2fg7</param>
+        <param name="transport">${transport}</param>
+        <param name="host">${host}</param>
+        <param name="port">${port}</param>
+        <param name="serial_device">${serial_device}</param>
+        <param name="baud_rate">${baud_rate}</param>
+        <param name="rtu_parity">${rtu_parity}</param>
+        <param name="slave_id">${slave_id}</param>
+        <param name="connect_timeout_ms">${connect_timeout_ms}</param>
+        <param name="read_timeout_ms">${read_timeout_ms}</param>
+        <param name="write_timeout_ms">${write_timeout_ms}</param>
+        <param name="finger_joint_upper_m">0.019</param>
+        <param name="raw_linear_min_mm">1.0</param>
+        <param name="raw_linear_max_mm">39.0</param>
+        <param name="task_min_m">0.0</param>
+        <param name="task_max_m">${task_aperture}</param>
+        <param name="physical_min_m">0.0</param>
+        <param name="physical_max_m">0.019</param>
+        <param name="isaac_joint">finger_stroke</param>
+        <param name="isaac_joint_commands_topic">${isaac_joint_commands_topic}</param>
+        <param name="isaac_joint_states_topic">${isaac_joint_states_topic}</param>
+        <param name="isaac_state_timeout_ms">${isaac_state_timeout_ms}</param>
+        <param name="fake_task_min_m">0.0</param>
+        <param name="fake_task_max_m">${task_aperture}</param>
+        <param name="fake_motion_speed_m_s">${fake_motion_speed_m_s}</param>
+        <param name="fake_stall">${fake_stall}</param>
+        <param name="default_force_n">20.0</param>
+        <param name="supply_power_w">${supply_power_w}</param>
+        <param name="speed_percent">${conventional_speed_percent}</param>
+        <param name="poll_period_ms">20</param>
+        <param name="realtime_update_rate_hz">${realtime_update_rate_hz}</param>
+        <param name="realtime_command_timeout_ms">100</param>
+        <param name="realtime_maximum_consecutive_failures">3</param>
+      </hardware>
+      <joint name="${prefix}grip_stroke">
+        <command_interface name="position" />
+        <command_interface name="effort" />
+        <command_interface name="realtime_mode" />
+        <command_interface name="realtime_task_position" />
+        <command_interface name="realtime_task_velocity" />
+        <command_interface name="realtime_force" />
+        <command_interface name="realtime_command_sequence" />
+        <command_interface name="fault_recovery_command_sequence" />
+        <command_interface name="stop_command_sequence" />
+        <command_interface name="conventional_command_sequence" />
+        <!-- Isaac receives target position/effort only. It has no verified
+             percentage-to-motion mapping, so do not advertise a speed command. -->
+        <xacro:if value="${backend != 'isaac'}">
+          <command_interface name="conventional_speed_percent" />
+        </xacro:if>
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+        <state_interface name="effort" />
+        <state_interface name="task_position_valid" />
+        <state_interface name="force_valid" />
+        <state_interface name="busy" />
+        <state_interface name="grip_detected" />
+        <state_interface name="active_mode" />
+        <state_interface name="connection_state" />
+        <state_interface name="faulted" />
+        <state_interface name="fault_code" />
+        <state_interface name="firmware_qualification" />
+        <state_interface name="realtime_force_control_available" />
+        <state_interface name="sample_sequence" />
+        <state_interface name="sample_age" />
+        <state_interface name="requested_command_sequence" />
+        <state_interface name="applied_command_sequence" />
+        <state_interface name="successful_cycles" />
+        <state_interface name="failed_cycles" />
+        <state_interface name="missed_deadlines" />
+        <state_interface name="watchdog_stops" />
+        <state_interface name="reconnects" />
+        <state_interface name="last_cycle_duration" />
+        <state_interface name="minimum_task_aperture" />
+        <state_interface name="maximum_task_aperture" />
+        <state_interface name="diagnostic_status_valid" />
+        <state_interface name="diagnostic_identity_valid" />
+        <state_interface name="diagnostic_product_code" />
+        <state_interface name="diagnostic_firmware_major" />
+        <state_interface name="diagnostic_firmware_minor" />
+        <state_interface name="diagnostic_firmware_build" />
+        <state_interface name="diagnostic_board_revisions_valid" />
+        <state_interface name="diagnostic_product_revision" />
+        <state_interface name="diagnostic_hardware_revision" />
+        <state_interface name="diagnostic_pcb_revision" />
+        <state_interface name="diagnostic_firmware_crc_valid" />
+        <state_interface name="diagnostic_firmware_crc" />
+        <state_interface name="diagnostic_firmware_source_valid" />
+        <state_interface name="diagnostic_firmware_git_word_0" />
+        <state_interface name="diagnostic_firmware_git_word_1" />
+        <state_interface name="diagnostic_firmware_git_word_2" />
+        <state_interface name="diagnostic_firmware_git_word_3" />
+        <state_interface name="diagnostic_firmware_git_word_4" />
+        <state_interface name="diagnostic_raw_status" />
+        <state_interface name="diagnostic_busy" />
+        <state_interface name="diagnostic_grip_detected" />
+        <state_interface name="diagnostic_sample_sequence" />
+        <state_interface name="diagnostic_age" />
+        <state_interface name="diagnostic_command_force" />
+        <state_interface name="diagnostic_command_force_valid" />
+        <state_interface name="diagnostic_measured_force" />
+        <state_interface name="diagnostic_measured_force_valid" />
+        <state_interface name="diagnostic_force_provenance" />
+        <state_interface name="diagnostic_motor_voltage" />
+        <state_interface name="diagnostic_motor_current" />
+        <state_interface name="diagnostic_temperature" />
+        <state_interface name="diagnostic_realtime_linear_velocity" />
+        <state_interface name="diagnostic_realtime_angular_velocity" />
+        <state_interface name="diagnostic_realtime_force" />
+        <state_interface name="diagnostic_supply_power" />
+        <state_interface name="diagnostic_maximum_force" />
+        <state_interface name="diagnostic_maximum_realtime_force" />
+        <state_interface name="diagnostic_statistics_valid" />
+        <state_interface name="diagnostic_conventional_grip_on_time" />
+        <state_interface name="diagnostic_power_cycles" />
+        <state_interface name="diagnostic_conventional_grip_cycles" />
+        <state_interface name="diagnostic_grip_detected_count" />
+        <state_interface name="diagnostic_realtime_grip_on_time" />
+        <state_interface name="diagnostic_not_calibrated" />
+        <state_interface name="diagnostic_linear_sensor_error" />
+        <state_interface name="diagnostic_external_width_mm" />
+        <state_interface name="diagnostic_internal_width_mm" />
+        <state_interface name="diagnostic_minimum_external_width_mm" />
+        <state_interface name="diagnostic_maximum_external_width_mm" />
+        <state_interface name="diagnostic_minimum_internal_width_mm" />
+        <state_interface name="diagnostic_maximum_internal_width_mm" />
+        <state_interface name="diagnostic_additional_results_raw" />
+        <state_interface name="diagnostic_linear_mechanism_position_mm" />
+        <state_interface name="diagnostic_raw_motor_width_mm" />
+        <state_interface name="diagnostic_voltage_5v_v" />
+        <state_interface name="diagnostic_linear_count" />
+        <state_interface name="diagnostic_motor_speed_rpm" />
+        <state_interface name="diagnostic_angle_sensor_count" />
+        <state_interface name="diagnostic_linear_error_count" />
+        <state_interface name="diagnostic_realtime_external_width_mm" />
+      </joint>
+      <joint name="${prefix}finger_stroke">
+        <state_interface name="position" />
+        <state_interface name="velocity" />
+        <state_interface name="measured_position" />
+        <state_interface name="measured_velocity" />
+        <state_interface name="position_valid" />
+        <state_interface name="velocity_valid" />
+      </joint>
+    </ros2_control>
+  </xacro:macro>
+</robot>

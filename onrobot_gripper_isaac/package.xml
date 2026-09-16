@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_gripper_isaac</name>
+  <version>0.1.0</version>
+  <description>Isaac Sim assets, contracts, and runtime validation for OnRobot grippers.</description>
+
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>onrobot_2fg14</exec_depend>
+  <exec_depend>onrobot_2fg7</exec_depend>
+  <exec_depend>onrobot_rg2</exec_depend>
+  <exec_depend>onrobot_rg6</exec_depend>
+  <exec_depend>onrobot_gripper_bringup</exec_depend>
+  <exec_depend>onrobot_gripper_description</exec_depend>
+  <exec_depend>onrobot_gripper_msgs</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>xacro</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

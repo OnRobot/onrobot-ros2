@@ -1,0 +1,41 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: onrobot_gripper_rviz_plugins/RealtimeControlPanel
+    Name: Realtime Position and Velocity
+  - Class: onrobot_gripper_rviz_plugins/ForceHistoryPanel
+    Name: Force & State History
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 1
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description Source: Topic
+      Description Topic: /robot_description
+      Enabled: true
+      Name: RG6 Model
+      Update Interval: 0.1
+      Value: true
+      Visual Enabled: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 0.52
+      Focal Point: {X: 0, Y: 0, Z: 0.08}
+      Name: Current View
+      Near Clip Distance: 0.01
+      Pitch: 0.55
+      Target Frame: base_link
+      Yaw: 0.75
+Window Geometry: {Height: 900, Width: 1400, X: 40, Y: 40}

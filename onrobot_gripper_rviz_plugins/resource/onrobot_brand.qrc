@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/onrobot/branding">
+    <file alias="logo_onrobot_rgb.png">branding/logo_onrobot_rgb.png</file>
+  </qresource>
+</RCC>

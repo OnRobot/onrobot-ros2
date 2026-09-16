@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "qualification_id": "rg2-realtime-position-hil-isaac-sim-6.0.1-2026-09-04",
+  "model": "rg2",
+  "asset_revision": "3.0",
+  "fidelity": "hardware-in-the-loop",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy",
+    "rmw_implementation": "rmw_fastrtps_cpp"
+  },
+  "source_artifact": {
+    "filename": "rg2_realtime_position_hil_50hz.json",
+    "sha256": "9ead2b17bdca7d52695ddd0313593296cd21245d0c7f5768f1f358f1bb5ceeb7",
+    "started_at": "2026-09-04T08:41:24.726527+00:00",
+    "finished_at": "2026-09-04T08:42:00.994372+00:00"
+  },
+  "status": "passed",
+  "control": {
+    "interface": "onrobot_gripper_msgs/msg/RealtimeCommand",
+    "mode": "realtime-position",
+    "command_authority": "ros2-control-typed-realtime-topic",
+    "hardware_owner": "external-real-backend-bringup",
+    "hardware_motion_enabled": true,
+    "hardware_exchange_rate_hz": 50
+  },
+  "scope": {
+    "task_joint": "grip_stroke",
+    "physical_joint": "finger_joint",
+    "physical_coordinate_unit": "rad",
+    "finger_profile": "rg2_standard",
+    "finger_profile_revision": "1",
+    "mapping_source": "device-compensated",
+    "mirrored_mimic_dof_count": 9,
+    "maximum_external_aperture_excursion_m": 0.01,
+    "maximum_effort_n": 10.0,
+    "shadow_tolerance_rad": 0.001
+  },
+  "tests": {
+    "bounded_hardware_motion": "passed",
+    "task_to_mechanism_delta": "passed",
+    "restore_valid_initial_aperture": "passed",
+    "hardware_to_usd_shadow_fidelity": "passed",
+    "hardware_health_stable": "passed"
+  },
+  "measurements": {
+    "initial_task_aperture_m": 0.0594,
+    "target_task_aperture_m": 0.0494,
+    "measured_task_aperture_m": 0.0504,
+    "task_delta_m": -0.009,
+    "initial_physical_position_rad": 0.5324284644783173,
+    "measured_physical_position_rad": 0.444336994481534,
+    "physical_delta_rad": -0.08809146999678324,
+    "task_to_mechanism_delta_error_rad": 0.0009467137351672483,
+    "restore_target_task_aperture_m": 0.0594,
+    "restored_task_aperture_m": 0.0585,
+    "restoration_error_m": 0.0009,
+    "maximum_hardware_to_usd_shadow_error_rad": 1.8922717212044304e-06,
+    "maximum_usd_mimic_error_rad": 3.4419924853645867e-06
+  },
+  "hardware_health_delta": {
+    "sample_sequence": 199,
+    "successful_hardware_cycles": 199,
+    "failed_hardware_cycles": 0,
+    "missed_deadlines": 0,
+    "watchdog_stops": 0,
+    "reconnects": 0
+  },
+  "timing_observation": {
+    "maximum_hardware_cycle_duration_s": 0.011548919,
+    "maximum_reported_sample_age_s": 0.044978456,
+    "maximum_typed_state_callback_interval_s": 0.04799984100009169,
+    "typed_state_samples": 158
+  },
+  "asset_files_sha256": {
+    "onrobot_rg2.usda": "958d56d8499becaefba36e0f9f4b753d608e0735999e4337abf064c4dce1457c",
+    "payloads/Physics/physics.usda": "21689c2ae2d58fcb4e0e71e5351b3f4d70627485de6693b8c56971f9e3152a6f",
+    "payloads/Physics/physx.usda": "be401198b2785df218ade8ccb48c1bf712615dd44aeb4fc116f3bb02876a23bc",
+    "payloads/Physics/physx_parallel_grip.usda": "be401198b2785df218ade8ccb48c1bf712615dd44aeb4fc116f3bb02876a23bc",
+    "payloads/Physics/physx_parallel_grip_tip_contact.usda": "1a6af052247bd4dc0343cc94a825136ce2b64e92d1d33cd7d86bac41fb0749cd",
+    "payloads/base.usda": "004df9626003605be29e4f547373590bbcbd863ca1c3acbab4bbfde57fbe3025",
+    "payloads/geometries.usd": "579ab7c58699ffb120986ea3733399949a64eab7b95a63711fc60a363cf791be",
+    "payloads/instances.usda": "0de6a19bce81d25b7eb9fa3f02b755bdca360f66299c2e64845657fc551afeae",
+    "payloads/materials.usda": "c7ee30535bab36ad7f01ec43e909ca7f0ec572fe77aa78881fc60898354e09ab",
+    "payloads/robot.usda": "158927d81f545908dfa5492479d1a03f162ec39e8b6dba94fa653aa59200ee33"
+  },
+  "limitations": [
+    "The qualified hardware exchange rate is 50 Hz; higher rates require separate zero-miss qualification on the target deployment.",
+    "Drive stiffness, damping, torque, contact-force fidelity, and simulated gripping force remain unqualified.",
+    "The RG mechanism angle is the physical simulation coordinate; the compensated aperture remains the ROS task coordinate.",
+    "This evidence applies only to the declared asset, standard finger profile, hardware interface, and runtime revisions.",
+    "This is a functional integration qualification, not a safety-rated motion test."
+  ]
+}

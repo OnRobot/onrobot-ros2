@@ -1,0 +1,12 @@
+/**/gripper_state_broadcaster:
+  ros__parameters:
+    model: rg2
+    task_joint: grip_stroke
+    mechanism_joint: finger_joint
+    mechanism_dimension: angular
+    device_profile_revision: "1"
+    finger_profile_name: rg2_standard
+    finger_profile_revision: "1"
+    mapping_source: device_compensated
+    publish_rate: 100.0
+    diagnostic_rate: 1.0

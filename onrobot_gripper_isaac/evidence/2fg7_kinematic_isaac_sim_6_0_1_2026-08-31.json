@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "qualification_id": "2fg7-kinematic-isaac-sim-6.0.1-2026-08-31",
+  "model": "2fg7",
+  "asset_revision": "3.0",
+  "fidelity": "kinematic",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy"
+  },
+  "source_artifact": {
+    "filename": "2fg7_kinematic_qualification.json",
+    "sha256": "a5e287c3f400ce3a5a2f3c631055d737d2bcb3f275b7f709c2ba341e8e7811df",
+    "started_at": "2026-08-31T21:07:39.284459+00:00",
+    "finished_at": "2026-08-31T21:08:33.851029+00:00"
+  },
+  "status": "passed",
+  "tests": {
+    "clock_namespace_and_live_state": "passed",
+    "conventional_open_midpoint_close": "passed",
+    "conventional_cancel_holds": "passed",
+    "state_stream_outage_and_bridge_recovery": "passed",
+    "switch_to_realtime_controller": "passed",
+    "realtime_position": "passed",
+    "realtime_velocity_endpoint_hold": "passed",
+    "realtime_stale_command_watchdog": "passed",
+    "force_remains_unavailable": "passed"
+  },
+  "measurements": {
+    "task_closed_m": 0.0,
+    "task_midpoint_m": 0.03611578947368421,
+    "task_open_m": 0.073,
+    "physical_closed_m": 0.0,
+    "physical_midpoint_m": 0.0094,
+    "physical_open_m": 0.019,
+    "cancel_drift_m": 0.0,
+    "endpoint_minimum_recent_m": 0.073,
+    "watchdog_hold_drift_m": 0.0,
+    "observed_state_stream_outage_s": 0.7122218770018662,
+    "force_valid": false
+  },
+  "limitations": [
+    "Contact and grasp behavior are not qualified.",
+    "Drive stiffness and damping are recorded but not qualified.",
+    "Simulated force remains unavailable.",
+    "This evidence applies only to the declared asset and runtime revisions."
+  ]
+}

@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_gripper_moveit_config</name>
+  <version>0.1.0</version>
+  <description>Reusable MoveIt 2 integration for supported OnRobot parallel grippers.</description>
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>moveit_msgs</depend>
+  <depend>rclpy</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>control_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>onrobot_gripper_msgs</depend>
+  <depend>onrobot_gripper_description</depend>
+
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_planners_ompl</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>moveit_simple_controller_manager</exec_depend>
+  <exec_depend>onrobot_gripper_bringup</exec_depend>
+  <exec_depend>onrobot_2fg7</exec_depend>
+  <exec_depend>onrobot_2fg14</exec_depend>
+  <exec_depend>onrobot_rg2</exec_depend>
+  <exec_depend>onrobot_rg6</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>moveit_core</test_depend>
+  <test_depend>srdfdom</test_depend>
+  <test_depend>urdf</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "qualification_id": "rg2-kinematic-isaac-sim-6.0.1-2026-09-03",
+  "model": "rg2",
+  "asset_revision": "3.0",
+  "fidelity": "kinematic",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "ros_distribution": "jazzy"
+  },
+  "source_artifact": {
+    "filename": "rg2_kinematic_qualification.json",
+    "sha256": "ac5207b5e7f63bc62cb88998744fe934d244133b53cac3af7f967f962ff0d53e",
+    "started_at": "2026-09-03T13:49:11.433329+00:00",
+    "finished_at": "2026-09-03T13:50:53.987045+00:00"
+  },
+  "status": "passed",
+  "tests": {
+    "clock_namespace_and_live_state": "passed",
+    "conventional_open_midpoint_close": "passed",
+    "conventional_cancel_holds": "passed",
+    "state_stream_outage_and_bridge_recovery": "passed",
+    "switch_to_realtime_controller": "passed",
+    "realtime_position": "passed",
+    "realtime_velocity_endpoint_hold": "passed",
+    "realtime_stale_command_watchdog": "passed",
+    "force_remains_unavailable": "passed"
+  },
+  "measurements": {
+    "task_closed_m": 0.0002808357760315873,
+    "task_midpoint_m": 0.05523542060644462,
+    "task_open_m": 0.11,
+    "physical_closed_rad": 0.0018,
+    "physical_midpoint_rad": 0.491,
+    "physical_open_rad": 1.22277767395,
+    "cancel_drift_m": 0.0,
+    "endpoint_minimum_recent_m": 0.11,
+    "watchdog_hold_drift_m": 0.000011151736559300574,
+    "observed_state_stream_outage_s": 0.7106619410005806,
+    "force_valid": false
+  },
+  "limitations": [
+    "The leader drive torque, stiffness, and damping remain provisional.",
+    "Simulated force remains unavailable.",
+    "Hardware-in-the-loop and operator-observed RViz agreement require separate qualification.",
+    "This evidence applies only to the declared asset and runtime revisions."
+  ]
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<robot name="dual_2fg14_realmesh_arm_fixture" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="use_standard_fingertips" default="false"/>
+  <xacro:arg name="include_ros2_control" default="false"/>
+  <xacro:include filename="$(find onrobot_2fg14)/urdf/onrobot_2fg14_realmesh_macro.xacro"/>
+
+  <link name="arm_base"/>
+  <link name="left_tool0"/>
+  <joint name="left_wrist_joint" type="fixed">
+    <parent link="arm_base"/><child link="left_tool0"/>
+    <origin xyz="0 0.25 0.5" rpy="0 0 0"/>
+  </joint>
+  <link name="right_tool0"/>
+  <joint name="right_wrist_joint" type="fixed">
+    <parent link="arm_base"/><child link="right_tool0"/>
+    <origin xyz="0 -0.25 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:onrobot_2fg14_realmesh parent="left_tool0" prefix="left_gripper_"
+                       origin_xyz="0 0 0.08" origin_rpy="0 0 0"
+                       include_ros2_control="$(arg include_ros2_control)"/>
+  <xacro:onrobot_2fg14_realmesh parent="right_tool0" prefix="right_gripper_"
+                       origin_xyz="0 0 0.08" origin_rpy="0 0 3.14159265359"
+                       include_ros2_control="$(arg include_ros2_control)"/>
+
+  <link name="left_user_finger"/>
+  <joint name="left_user_finger_joint" type="fixed">
+    <parent link="left_gripper_left_finger_mount"/>
+    <child link="left_user_finger"/>
+  </joint>
+  <link name="right_user_finger"/>
+  <joint name="right_user_finger_joint" type="fixed">
+    <parent link="right_gripper_right_finger_mount"/>
+    <child link="right_user_finger"/>
+  </joint>
+</robot>

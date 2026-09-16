@@ -1,0 +1,11 @@
+:root {
+  --onrobot-blue: #499dda;
+  --onrobot-gray: #7e878e;
+  --onrobot-black: #26292b;
+  --onrobot-light-gray: #dfe4e8;
+}
+
+body { font-family: Ubuntu, Arial, sans-serif; }
+a, .wy-menu-vertical a:active { color: var(--onrobot-blue); }
+.wy-side-nav-search { background: var(--onrobot-black); }
+.wy-side-nav-search img.logo { width: 190px; }

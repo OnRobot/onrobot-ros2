@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "qualification_id": "2fg14-dynamic-contact-isaac-sim-6.0.1-2026-09-02",
+  "model": "2fg14",
+  "asset_revision": "3.0",
+  "fidelity": "dynamic-contact",
+  "runtime": {
+    "isaac_sim_version": "6.0.1",
+    "physics_backend": "physx",
+    "physics_dt_s": 0.004166666666666667,
+    "solver_type": "TGS",
+    "harness_revision": 9
+  },
+  "source_artifact": {
+    "filename": "2fg14_dynamic_contact.json",
+    "sha256": "e5bf69d3d8ee3f6ec6d28d2a7cb495d5a857b66e7e62b1f12dbfb31de16a1dda",
+    "config_sha256": "8d25b690ff17f39b88d3a5fffd84023a1467c00b4f4b72145e9fe6bf48f1f704",
+    "elapsed_s": 76.91199524100011
+  },
+  "scope": {
+    "reference_fingers": "standard-nbr-outwards",
+    "object_id": "external_pinch_block_v1",
+    "trial_count": 5
+  },
+  "drive": {
+    "stiffness": 150.0,
+    "damping": 5.0,
+    "maximum_force_n": 280.0,
+    "qualified": false
+  },
+  "status": "passed",
+  "checks": {
+    "bilateral_contact_maintained": "passed-5-of-5",
+    "bilateral_contact_maintained_during_preload": "passed-5-of-5",
+    "bilateral_object_contact_acquired": "passed-5-of-5",
+    "contact_force_finite_and_bounded": "passed-5-of-5",
+    "contact_sensors_valid": "passed-5-of-5",
+    "hold_contact_normals_match_vertical_pinch_surfaces": "passed-5-of-5",
+    "hold_drop_bounded": "passed-5-of-5",
+    "hold_lateral_drift_bounded": "passed-5-of-5",
+    "hold_rotation_bounded": "passed-5-of-5",
+    "inter_trial_reset_ready": "passed-5-of-5",
+    "object_angular_speed_bounded": "passed-5-of-5",
+    "object_blocks_target_before_endpoint": "passed-5-of-5",
+    "object_displacement_bounded": "passed-5-of-5",
+    "object_speed_bounded": "passed-5-of-5",
+    "object_state_finite": "passed-5-of-5",
+    "release_loses_contact": "passed-5-of-5",
+    "release_target_reached": "passed-5-of-5"
+  },
+  "measurements": {
+    "contact_acquired_step_range": [123, 142],
+    "contact_target_m_range": [0.009099999999999907, 0.00957499999999992],
+    "grasp_position_m_range": [0.0100044384598732, 0.010004451498389244],
+    "peak_contact_force_n_range": [0.7572931051254272, 0.7782889604568481],
+    "minimum_bilateral_contact_fraction": 1.0,
+    "minimum_preload_bilateral_contact_fraction": 1.0,
+    "maximum_hold_drop_m": 7.152557373046875e-7,
+    "maximum_hold_lateral_drift_m": 6.98912447504978e-7,
+    "maximum_hold_rotation_rad": 8.035802624876047e-6,
+    "maximum_object_speed_m_s": 0.006127805875016946,
+    "maximum_object_angular_speed_rad_s": 0.0616872184869103,
+    "maximum_object_displacement_m": 1.9966805588378674e-5,
+    "maximum_reset_position_error_m": 2.2655295369091154e-5,
+    "maximum_reset_rotation_error_rad": 0.0,
+    "release_contact_step_range": [1, 1],
+    "release_position_m_range": [0.02500000223517418, 0.02500000409781933],
+    "estimated_effective_static_friction": 0.45,
+    "estimated_minimum_normal_force_per_finger_n": 0.218,
+    "hold_force_mean_n_range": {
+      "left_fingertip": [0.7499607481062412, 0.7506435573101043],
+      "right_fingertip": [0.749891293545564, 0.7505163403848807]
+    },
+    "maximum_mean_hold_contact_normal_vertical_component": 5.716099847422976e-6,
+    "maximum_hold_contact_normal_vertical_component": 9.437425433134194e-6
+  },
+  "contact_pairs": {
+    "left_fingertip": [
+      "/onrobot_2fg14/Geometry/left_fingertip_link",
+      "/onrobot_dynamic_contact/reference_object"
+    ],
+    "right_fingertip": [
+      "/onrobot_2fg14/Geometry/right_fingertip_link",
+      "/onrobot_dynamic_contact/reference_object"
+    ]
+  },
+  "limitations": [
+    "This evidence applies only to the declared asset, runtime, supplied outward-facing NBR fingers, and reference object revisions.",
+    "Drive gains were stable in this scenario but are not calibrated or generally qualified.",
+    "Contact force is an uncalibrated physics observation and is not exposed as a valid simulated gripper force measurement.",
+    "The 20 g reference object qualifies contact stability; it is not a payload-rating test.",
+    "User-authored finger geometry and physics require separate validation."
+  ]
+}

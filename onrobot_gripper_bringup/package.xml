@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>onrobot_gripper_bringup</name>
+  <version>0.1.0</version>
+  <description>Model-neutral ROS 2 bringup for OnRobot parallel grippers.</description>
+  <maintainer email="mikael.westermann@onrobot.com">Mikael Westermann</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>onrobot_gripper_controllers</exec_depend>
+  <exec_depend>onrobot_gripper_hardware</exec_depend>
+  <exec_depend>onrobot_2fg7</exec_depend>
+  <exec_depend>onrobot_2fg14</exec_depend>
+  <exec_depend>onrobot_rg2</exec_depend>
+  <exec_depend>onrobot_rg6</exec_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ros2bag</test_depend>
+  <test_depend>action_msgs</test_depend>
+  <test_depend>control_msgs</test_depend>
+  <test_depend>controller_manager_msgs</test_depend>
+  <test_depend>diagnostic_msgs</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>rclpy</test_depend>
+  <test_depend>sensor_msgs</test_depend>
+  <test_depend>tf2_msgs</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>python3-yaml</test_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>
