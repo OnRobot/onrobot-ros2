@@ -62,7 +62,9 @@ def asset_repository_root(root: Path | None = None,
     configured = repository or os.environ.get('ONROBOT_ISAAC_ASSET_REPOSITORY')
     candidates = ([Path(configured)] if configured else [
         root.parent / 'onrobot-isaac-sim',
+        root.parent / 'onrobot-isaacsim',
         root.parent.parent / 'onrobot-isaac-sim',
+        root.parent.parent / 'onrobot-isaacsim',
     ])
     pin = json.loads((root / 'config/asset_repository.json').read_text(
         encoding='utf-8'))

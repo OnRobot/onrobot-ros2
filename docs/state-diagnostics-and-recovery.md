@@ -14,7 +14,7 @@ Every control launch publishes:
 | Connection and freshness | Connection state, sample age, sample sequence |
 | Fault and safety | Fault source/code/message and valid RG safety state |
 | Health | Successful/failed cycles, missed deadlines, watchdog stops, reconnects |
-| Device registers | Supported model-specific values with units in their keys |
+| Device telemetry | Supported model-specific values with units in their keys |
 
 Unsupported values are omitted from diagnostics. Use typed-state validity
 fields before consuming numeric observations. 2FG force feedback is signed in
@@ -32,9 +32,24 @@ policy. The 2FG/RG bringup provides explicit recovery for latched faults:
 ros2 service call /recovery_controller/recover std_srvs/srv/Trigger '{}'
 ```
 
-The service response means the request was queued. Observe semantic state or
-diagnostics for completion. Successful recovery returns to an idle state and
-does not replay the previous command.
+The service accepts a request only while the recovery controller is active,
+the device state is available and faulted, and (for RG grippers) the safety
+state permits recovery. Only one request can be unresolved at a time. A
+successful service response means the controller queued the request; it does
+not mean the hardware accepted it or that recovery completed. Observe
+`/gripper_state_broadcaster/state`, `/diagnostics`, and the controller log for
+hardware admission and the final result. Successful recovery returns the
+device to active idle without replaying the previous motion. A backend
+rejection is not reported as recovery completion, and the controller does not
+retry it automatically. A failed recovery remains faulted. Check the current
+device state, address the reported cause, and submit a fresh request if the
+device is still faulted.
+
+The controller retains a queued request if its command interface is temporarily
+unavailable. Deactivation does not discard an unresolved request, and cleanup
+or unload is refused until that request reaches a terminal result. Reactivate
+the controller to resume observation. Calls made while it is inactive are
+rejected, and a completed request is not replayed after unload/reload.
 
 The 3FG evaluation launch does not provide this recovery service.
 

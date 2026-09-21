@@ -40,8 +40,8 @@ supplied bundles already contain it. From the workspace root:
 source /opt/ros/jazzy/setup.bash
 rosdep install --from-paths src/onrobot-ros2 --ignore-src -r -y \
   --skip-keys onrobot_tool_api
-colcon build --base-paths src/onrobot-ros2 --symlink-install \
-  --cmake-args -DBUILD_TESTING=OFF --packages-skip onrobot_gripper_isaac
+colcon build --base-paths src/onrobot-ros2 --packages-up-to onrobot_ros2 --symlink-install \
+  --cmake-args -DBUILD_TESTING=OFF
 source install/setup.bash
 ros2 launch onrobot_gripper_demos showcase.launch.py \
   model:=2fg7 backend:=fake control:=conventional start_rviz:=true

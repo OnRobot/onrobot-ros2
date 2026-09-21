@@ -40,16 +40,9 @@ install(DIRECTORY examples DESTINATION share/${PROJECT_NAME}
   PATTERN "*.pyc" EXCLUDE)
 install(FILES README.md DESTINATION share/${PROJECT_NAME})
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_gripper_profiles tests/test_gripper_profiles.cpp)
-  target_link_libraries(test_gripper_profiles ${PROJECT_NAME}_profiles)
-  target_compile_definitions(test_gripper_profiles PRIVATE
-    STOCK_PLANNING_PROFILE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config/planning_profiles")
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_pytest_test(test_finger_profiles tests/test_finger_profiles.py)
-  ament_add_pytest_test(test_rg_cad_mesh_geometry tests/test_rg_cad_mesh_geometry.py)
-  ament_add_pytest_test(test_stock_planning_mesh tests/test_stock_planning_mesh.py)
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 ament_package()

@@ -11,9 +11,10 @@ The same integration surface is provided for 2FG7, 2FG14, RG2, and RG6.
 ## Asset dependency
 
 Canonical USD files live in the separate, non-ROS `onrobot-isaac-sim`
-repository. Before building from source, provide it at either
-`onrobot-ros2/onrobot-isaac-sim` (the submodule location) or as a sibling of
-`onrobot-ros2`. Supplied source bundles already include the required files.
+repository (published as `onrobot-isaacsim` on GitHub). Before building from
+source, provide it as a sibling of `onrobot-ros2` or as a nested checkout.
+Both `onrobot-isaac-sim` and `onrobot-isaacsim` directory names are accepted.
+Supplied source bundles already include the required files.
 The build checks `config/asset_repository.json` against the asset manifest
 and verifies every asset checksum. A missing or mismatched dependency stops
 the build with an explicit error.

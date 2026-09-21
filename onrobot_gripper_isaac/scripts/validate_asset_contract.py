@@ -877,7 +877,7 @@ def _validate_dynamic_contact(package_root: Path, contract: dict,
         raise AssertionError(
             'dynamic contact status and runtime fidelity disagree')
 
-    evidence_path = package_root / dynamic_contact['evidence']
+    evidence_path = _evidence_package_root(package_root) / dynamic_contact['evidence']
     if not evidence_path.is_file():
         raise AssertionError('retained dynamic contact evidence is missing')
     evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
@@ -926,6 +926,15 @@ def _validate_dynamic_contact(package_root: Path, contract: dict,
         raise AssertionError('dynamic contact/grasp claim is inconsistent')
 
 
+def _evidence_package_root(package_root: Path) -> Path:
+    """Locate optional maintainer reports without requiring them in installs."""
+    internal_root = package_root.parent / 'internal' / package_root.name
+    if (internal_root / 'evidence').is_dir():
+        return internal_root
+    # Explicit standalone test fixtures may stage reports beside their config.
+    return package_root
+
+
 def _validate_kinematic_evidence(package_root: Path, contract: dict) -> None:
     qualification = contract['qualification']
     status = qualification['automated_kinematic_regression']
@@ -933,7 +942,7 @@ def _validate_kinematic_evidence(package_root: Path, contract: dict) -> None:
         return
     if status != 'automated-passed':
         raise AssertionError('unsupported kinematic qualification status')
-    evidence_path = package_root / qualification['kinematic_evidence']
+    evidence_path = _evidence_package_root(package_root) / qualification['kinematic_evidence']
     if not evidence_path.is_file():
         raise AssertionError('retained kinematic evidence is missing')
     evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
@@ -1037,7 +1046,7 @@ def _validate_hardware_in_loop_evidence(
     if not (conventional_claim_valid or realtime_claim_valid):
         raise AssertionError(
             'hardware-in-the-loop claim has an unsupported scope')
-    evidence_path = package_root / hil['evidence']
+    evidence_path = _evidence_package_root(package_root) / hil['evidence']
     if not evidence_path.is_file():
         raise AssertionError(
             'retained hardware-in-the-loop evidence is missing')
@@ -1123,7 +1132,7 @@ def _validate_hardware_in_loop_evidence(
     if not realtime_qualified:
         return
 
-    realtime_path = package_root / hil['realtime_position_evidence']
+    realtime_path = _evidence_package_root(package_root) / hil['realtime_position_evidence']
     if not realtime_path.is_file():
         raise AssertionError(
             'retained realtime-position HIL evidence is missing')
@@ -1184,7 +1193,7 @@ def validate(package_root: Path, ros_root: Path,
              include_internal_evidence: bool | None = None) -> dict:
     """Validate asset files and their agreement with the ROS description."""
     if include_internal_evidence is None:
-        include_internal_evidence = (package_root / 'evidence').is_dir()
+        include_internal_evidence = (_evidence_package_root(package_root) / 'evidence').is_dir()
     contract_path = package_root / 'config' / f'{model}_asset_contract.json'
     contract = json.loads(contract_path.read_text(encoding='utf-8'))
     if contract['model'] != model:

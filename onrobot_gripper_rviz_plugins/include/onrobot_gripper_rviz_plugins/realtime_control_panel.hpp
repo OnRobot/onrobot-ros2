@@ -55,8 +55,8 @@ private:
   using RealtimeState = onrobot_gripper_msgs::msg::RealtimeState;
 
   struct SharedState {
-    // Typed capability and contact state are one coherent snapshot; never
-    // combine a model from one publication with availability from another.
+    // Protect typed capability/contact and realtime acknowledgement updates
+    // so readiness and Stop checks cannot combine different publications.
     std::mutex typed_mutex;
     onrobot_gripper_msgs::msg::GripperState typed;
     std::int64_t typed_received_ns{0};
@@ -80,6 +80,8 @@ private:
     std::atomic<std::uint64_t> successful_cycles{0};
     std::atomic<std::uint64_t> failed_cycles{0};
     std::atomic<std::uint64_t> missed_deadlines{0};
+    std::atomic<std::uint64_t> requested_command_sequence{0};
+    std::atomic<std::uint64_t> applied_command_sequence{0};
     std::atomic<std::int64_t> last_state_ns{0};
     std::atomic<double> minimum_aperture_m{0.0};
     std::atomic<double> maximum_aperture_m{0.0};
@@ -94,14 +96,16 @@ private:
   };
 
   void beginPositionCommand(double i_targetPositionM);
+  void beginPositionCommand(double i_targetPositionM, double i_forceN);
   void publishPositionCommand();
   void publishJoystickCommand();
   bool forceCommandReady(int *o_model = nullptr) const;
   void beginForceCommand();
   void publishForceCommand();
   void releaseForceGrip();
+  void updateReleaseOpen();
   void updateForceControls();
-  void stopRealtime(const char *i_reason);
+  void stopRealtime(const char *i_reason, bool i_forcePublish = false);
   void setCommandWidgetsEnabled(bool i_enabled);
   void updateStatus();
   void setStatus(const QString &i_text);
@@ -132,12 +136,21 @@ private:
   QLabel *m_gripStateLabel{nullptr};
   QLabel *m_forceHint{nullptr};
   bool m_forceCommandActive{false};
+  bool m_releaseOpenPending{false};
+  std::uint64_t m_releaseStopBaseline{0};
+  std::int64_t m_releaseStartedNs{0};
+  double m_releaseTargetM{0.0};
+  double m_releaseForceN{0.0};
   int m_forceModel{0};
   RealtimeCommand m_forceCommand;
+  // Position and joystick commands are refreshed asynchronously. Capture the
+  // force target when an operation starts so editing the spinbox cannot alter
+  // an already-admitted command or turn it into a zero-force request.
+  double m_positionCommandForce{30.0};
+  double m_joystickForce{30.0};
   QSlider *m_joystickSlider{nullptr};
   QDoubleSpinBox *m_maxVelocitySpinBox{nullptr};
   QLabel *m_directionLabel{nullptr};
-  QLabel *m_measuredLabel{nullptr};
   QLabel *m_taskPositionValue{nullptr};
   QLabel *m_taskVelocityValue{nullptr};
   QLabel *m_mechanismPositionValue{nullptr};

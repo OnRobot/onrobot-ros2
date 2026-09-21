@@ -19,6 +19,7 @@ the guide. A full developer checkout can build tests using the public SDK.
 ## Verify installation
 
 ```bash
+ros2 pkg xml onrobot_ros2 --tag version
 ros2 pkg prefix onrobot_gripper_bringup
 ros2 pkg prefix onrobot_gripper_demos
 ros2 launch onrobot_gripper_demos showcase.launch.py --show-args
@@ -28,6 +29,18 @@ The prefixes should point to the workspace you just built. If they point to
 an older workspace, start a fresh terminal and source only Jazzy and the
 intended installation. Keep the Tool API runtime and development packages at
 the same version; mixing libraries and headers can cause missing-symbol errors.
+
+The `onrobot_ros2` metapackage groups all product packages, including MoveIt,
+RViz, Isaac integration and the evaluation-only 3FG packages. Build the group
+with `--packages-up-to onrobot_ros2`; `--packages-select onrobot_ros2` selects
+only the metapackage. The Tool API DEBs and matching Isaac assets must still be
+provided as described above.
+
+Its version identifies the ROS suite release in the [changelog](../CHANGELOG.md).
+Individual ROS packages, Tool API and Isaac assets have their own versions;
+the suite version does not guarantee that independently replaced components
+match the supplied release. The changelog is also installed at
+`share/onrobot_ros2/CHANGELOG.md` under the metapackage's installation prefix.
 
 ## Other installation environments
 

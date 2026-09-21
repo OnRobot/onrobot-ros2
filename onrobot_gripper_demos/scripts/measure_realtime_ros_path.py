@@ -29,6 +29,10 @@ from std_srvs.srv import Trigger
 
 
 MODELS = ('2fg7', '2fg14', 'rg2', 'rg6')
+REALTIME_VELOCITY_FORCE_TARGET_N = {
+    '2fg7': 30.0,
+    '2fg14': 40.0,
+}
 
 
 def fq(namespace, name):
@@ -323,6 +327,11 @@ class RosPathObserver(Node):
             message.mechanism_angular_velocity = direction * 0.2
         else:
             message.task_velocity = direction * 0.010
+            # The 2FG realtime command contract requires a positive force
+            # target in both position and velocity selectors. Do not let the
+            # ROS message default (0 N) turn this rate probe into a release
+            # form.
+            message.force = REALTIME_VELOCITY_FORCE_TARGET_N[self.model]
         self.publisher.publish(message)
 
 

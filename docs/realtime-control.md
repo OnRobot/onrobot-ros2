@@ -17,7 +17,9 @@ rather than interpreting repeated publications as fresh hardware samples.
 | Force approach | Positive closing target, N; position or velocity approach | Not a regulated measured-force interface |
 
 The [RViz panel reference](../onrobot_gripper_rviz_plugins/README.md) explains
-Open, Close, Send target and the held joystick. Its
+Open, Close, Send target and the held joystick. The realtime-position force
+target is positive, captured when each operation starts, and included in every
+refreshed 2FG position or velocity command. Its
 [2FG force controls](../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip)
 cover contact hold and explicit release. Check
 `realtime_force_control_available`; the Isaac joint bridge does not implement

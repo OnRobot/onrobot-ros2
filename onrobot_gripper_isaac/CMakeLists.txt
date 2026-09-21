@@ -34,7 +34,6 @@ install(
   DESTINATION share/${PROJECT_NAME}
   PATTERN "__pycache__" EXCLUDE
   PATTERN "*.pyc" EXCLUDE
-  PATTERN "release_support_matrix.json" EXCLUDE
 )
 
 install(
@@ -76,51 +75,9 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_pytest REQUIRED)
-  find_package(launch_testing_ament_cmake REQUIRED)
-  ament_add_pytest_test(test_asset_paths test/test_asset_paths.py TIMEOUT 30)
-  ament_add_pytest_test(test_asset_visual_materials test/test_asset_visual_materials.py TIMEOUT 30)
-  ament_add_pytest_test(test_rg_fingertip_materials test/test_rg_fingertip_materials.py TIMEOUT 30)
-  ament_add_pytest_test(
-    test_asset_contract
-    test/test_asset_contract.py
-    TIMEOUT 60
-  )
-  ament_add_pytest_test(
-    test_runtime_scripts
-    test/test_runtime_scripts.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    test_grip_drive_control
-    test/test_grip_drive_control.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    test_workpiece_showcase
-    test/test_workpiece_showcase.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    test_drive_step_response
-    test/test_drive_step_response.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    test_hardware_in_loop
-    test/test_hardware_in_loop.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    test_synthetic_grip_learning
-    test/test_synthetic_grip_learning.py
-    TIMEOUT 30
-  )
-  add_launch_test(
-    test/test_hil_preflight_launch.py
-    TIMEOUT 90
-  )
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 ament_package()

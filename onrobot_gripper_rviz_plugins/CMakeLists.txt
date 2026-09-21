@@ -48,51 +48,9 @@ ament_target_dependencies(gripper_effort_marker geometry_msgs rclcpp sensor_msgs
 
 pluginlib_export_plugin_description_file(rviz_common onrobot_gripper_rviz.xml)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_realtime_panel_semantics tests/test_realtime_panel_semantics.cpp)
-  target_compile_features(test_realtime_panel_semantics PRIVATE cxx_std_17)
-  target_include_directories(test_realtime_panel_semantics PRIVATE include)
-  ament_add_gtest(test_gripper_control_panel tests/test_gripper_control_panel.cpp)
-  target_compile_features(test_gripper_control_panel PRIVATE cxx_std_17)
-  target_link_libraries(test_gripper_control_panel onrobot_gripper_rviz)
-  ament_add_gtest(test_force_history_model tests/test_force_history_model.cpp)
-  target_compile_features(test_force_history_model PRIVATE cxx_std_17)
-  target_include_directories(test_force_history_model PRIVATE include)
-  ament_add_gtest(test_panel_configuration tests/test_panel_configuration.cpp)
-  target_compile_features(test_panel_configuration PRIVATE cxx_std_17)
-  target_link_libraries(test_panel_configuration onrobot_gripper_rviz Qt5::Test)
-  set_tests_properties(test_panel_configuration PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-  ament_add_gtest_executable(test_panel_integration tests/test_panel_integration.cpp)
-  target_compile_features(test_panel_integration PRIVATE cxx_std_17)
-  ament_target_dependencies(test_panel_integration control_msgs
-    onrobot_gripper_msgs rcl_interfaces rclcpp rviz_common)
-  target_link_libraries(test_panel_integration onrobot_gripper_rviz Qt5::Test)
-  foreach(panel_model 2fg7 2fg14 rg2 rg6)
-    ament_add_gtest_test(test_panel_integration
-      TEST_NAME panel_integration_${panel_model}
-      TIMEOUT 180
-      ENV
-        "QT_QPA_PLATFORM=offscreen"
-        "OPENBLAS_NUM_THREADS=1"
-        "OMP_NUM_THREADS=1"
-        "GTEST_FILTER=PanelIntegrationFixture.ActualQtInputMovesEveryFakeModelThroughControllers"
-        "ONROBOT_PANEL_TEST_ONLY_MODEL=${panel_model}"
-        "ONROBOT_PANEL_TEST_EVIDENCE_DIR=${CMAKE_CURRENT_BINARY_DIR}/panel-test-evidence/${panel_model}")
-  endforeach()
-  ament_add_gtest_test(test_panel_integration
-    TEST_NAME panel_integration_unit
-    TIMEOUT 60
-    ENV
-      "QT_QPA_PLATFORM=offscreen"
-      "OPENBLAS_NUM_THREADS=1"
-      "OMP_NUM_THREADS=1"
-      "GTEST_FILTER=-PanelIntegrationFixture.ActualQtInputMovesEveryFakeModelThroughControllers:PanelIntegrationFixture.ThreeFingerLivePanelClickAndCapture")
-  ament_add_gtest(test_rviz_plugin tests/test_rviz_plugin.cpp)
-  ament_target_dependencies(test_rviz_plugin pluginlib rviz_common)
-  set_tests_properties(test_rviz_plugin PROPERTIES
-    ENVIRONMENT "AMENT_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}:$ENV{AMENT_PREFIX_PATH}")
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 install(TARGETS onrobot_gripper_rviz gripper_effort_marker

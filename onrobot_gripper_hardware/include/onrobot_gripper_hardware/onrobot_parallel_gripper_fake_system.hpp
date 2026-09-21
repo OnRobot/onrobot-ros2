@@ -109,6 +109,8 @@ private:
   double active_mode_state_{0.0};
   double connection_state_{3.0};
   double faulted_state_{0.0};
+  double fault_recovery_sequence_ack_state_{0.0};
+  double fault_recovery_admission_state_{0.0};
   double fault_code_state_{0.0};
   double firmware_qualification_state_{0.0};
   double realtime_force_control_available_{0.0};

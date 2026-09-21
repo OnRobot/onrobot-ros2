@@ -15,13 +15,9 @@ install(PROGRAMS scripts/record_gripper_session.py
 install(PROGRAMS scripts/replay_gripper_session.py
   DESTINATION lib/${PROJECT_NAME} RENAME replay_gripper_session)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_pytest_test(test_showcase_launch test/test_showcase_launch.py)
-  ament_add_pytest_test(
-    test_realtime_ros_path test/test_realtime_ros_path.py)
-  ament_add_pytest_test(
-    test_session_tools test/test_session_tools.py)
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 ament_package()

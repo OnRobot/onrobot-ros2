@@ -475,6 +475,19 @@ bool OnRobotRealtimeController::validMotion(
   if (!m_rgCoordinateProfile && i_command.force < 0.0) {
     return false;
   }
+  // The supported 2FG realtime command contract uses the force field in both
+  // realtime selectors. A zero target is not a valid motion command; Stop has
+  // its own explicit selector.
+  if (!m_rgCoordinateProfile && i_command.force <= 0.0) {
+    return false;
+  }
+  // RG realtime velocity is a pure angular-velocity selector and has no
+  // force target. RG position does carry force, so reject its zero default
+  // before it can reach the hardware adapter and SDK.
+  if (m_rgCoordinateProfile &&
+      i_command.mode == Command::POSITION && i_command.force <= 0.0) {
+    return false;
+  }
   if (!m_rgCoordinateProfile &&
       (i_command.mode == Command::POSITION ||
        i_command.mode == Command::FORCE_POSITION) &&

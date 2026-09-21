@@ -427,6 +427,8 @@
               <state_interface name="missed_deadlines" />
               <state_interface name="watchdog_stops" />
               <state_interface name="reconnects" />
+              <state_interface name="fault_recovery_command_sequence_ack" />
+              <state_interface name="fault_recovery_command_admission" />
               <state_interface name="last_cycle_duration" />
               <state_interface name="minimum_task_aperture" />
               <state_interface name="maximum_task_aperture" />

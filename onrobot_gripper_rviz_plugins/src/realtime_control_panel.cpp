@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <memory>
 
 #include <QDoubleSpinBox>
@@ -46,10 +47,26 @@ void updateWrappedLabelHeight(QLabel *label) {
                                  renderRect, Qt::TextWordWrap, label->text())
                                  .height();
   const int requiredHeight = renderedHeight + 2;
-  if (requiredHeight > label->minimumHeight()) {
-    label->setMinimumHeight(requiredHeight);
-  }
+  // Recompute the minimum instead of only growing it.  A live field may be
+  // cleared after its initial placeholder wrapped to multiple lines; keeping
+  // that old height makes a grid/span or sibling layout use inconsistent
+  // geometry after the text changes.
+  label->setMinimumHeight(requiredHeight);
   label->updateGeometry();
+
+  // A live status update can arrive after the parent layout has already been
+  // activated for the current event loop turn.  In that case updateGeometry()
+  // only posts a layout request and a sibling row can retain its old
+  // position until a later repaint.  Activate the containing layouts now so
+  // wrapped status, measurement, and safety rows cannot overlap while the
+  // panel is being resized or updated.
+  for (auto *parent = label->parentWidget(); parent != nullptr;
+       parent = parent->parentWidget()) {
+    if (auto *layout = parent->layout(); layout != nullptr) {
+      layout->invalidate();
+      layout->activate();
+    }
+  }
 }
 
 // A stock QSlider uses relative, auto-repeating page steps for groove presses.
@@ -133,19 +150,19 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
       "External task aperture; live limits come from the connected backend");
   positionLayout->addRow("Target aperture:", m_targetPositionSpinBox);
 
-  m_positionForceCaption = new QLabel("Force limit:", positionGroup);
+  m_positionForceCaption = new QLabel("Force target:", positionGroup);
   m_positionForceCaption->setObjectName("realtimePositionForceCaption");
   m_positionForceSpinBox = new QDoubleSpinBox(positionGroup);
   m_positionForceSpinBox->setObjectName("realtimePositionForce");
-  m_positionForceSpinBox->setRange(0.0, 40.0);
+  m_positionForceSpinBox->setRange(30.0, 196.0);
   m_positionForceSpinBox->setDecimals(1);
   m_positionForceSpinBox->setSingleStep(1.0);
-  m_positionForceSpinBox->setValue(10.0);
+  m_positionForceSpinBox->setValue(30.0);
   m_positionForceSpinBox->setSuffix(" N");
   m_positionForceSpinBox->setToolTip(
-      "RG force limit sent with the realtime position command");
-  m_positionForceCaption->setVisible(false);
-  m_positionForceSpinBox->setVisible(false);
+      "Positive closing force target sent with the realtime position command");
+  m_positionForceCaption->setVisible(true);
+  m_positionForceSpinBox->setVisible(true);
   positionLayout->addRow(m_positionForceCaption, m_positionForceSpinBox);
 
   auto *positionButtons = new QHBoxLayout();
@@ -239,7 +256,9 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
   m_releaseGripButton = new QPushButton("Release / open", forceGroup);
   m_releaseGripButton->setObjectName("realtimeReleaseGripButton");
   m_releaseGripButton->setToolTip(
-      "Zero-force position command to the live open limit; requires over 1 mm travel");
+      "Stop the active hold and open to the live limit with the positive position force target");
+  // Release/open is implemented as an ordinary positive-force position
+  // command.  It never relies on a zero-force realtime command.
   forceButtons->addWidget(m_holdGripButton);
   forceButtons->addWidget(m_releaseGripButton);
   forceLayout->addRow(forceButtons);
@@ -271,8 +290,6 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
   auto *measuredGrid = new QGridLayout();
   measuredGrid->setColumnStretch(0, 1);
   measuredGrid->setColumnMinimumWidth(1, 74);
-  m_measuredLabel = new QLabel("Waiting for realtime state", stateGroup);
-  m_measuredLabel->setObjectName("realtimeMeasuredLabel");
   m_statusLabel = new QLabel("RViz realtime panel is starting", stateGroup);
   m_statusLabel->setObjectName("realtimeStatusLabel");
   m_safetyLabel = new QLabel(stateGroup);
@@ -310,11 +327,8 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
   measuredGrid->addWidget(m_forceUnit, 4, 2);
   taskPositionUnit->setText("m");
   taskVelocityUnit->setText("m/s");
-  measuredGrid->addWidget(m_measuredLabel, 5, 0, 1, 3);
   m_statusLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-  m_measuredLabel->setMinimumWidth(180);
   m_statusLabel->setMinimumWidth(180);
-  m_measuredLabel->setWordWrap(true);
   m_statusLabel->setWordWrap(true);
   m_safetyLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
   m_safetyLabel->setMinimumWidth(180);
@@ -339,7 +353,9 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
   m_commandTimer = new QTimer(this);
   m_commandTimer->setInterval(20);
   connect(m_commandTimer, &QTimer::timeout, this, [this]() {
-    if (m_forceCommandActive && !m_stopRequested) {
+    if (m_releaseOpenPending) {
+      updateReleaseOpen();
+    } else if (m_forceCommandActive && !m_stopRequested) {
       publishForceCommand();
     } else if (m_dragging && !m_stopRequested) {
       publishJoystickCommand();
@@ -355,7 +371,20 @@ RealtimeControlPanel::RealtimeControlPanel(QWidget *i_parent)
   m_stateTimer->start();
 
   connect(m_joystickSlider, &QSlider::sliderPressed, this, [this]() {
+    m_releaseOpenPending = false;
     if (m_forceCommandActive) stopRealtime("switch to joystick");
+    const double force = m_positionForceSpinBox->value();
+    if (!m_rgCoordinateProfile &&
+        (!std::isfinite(force) || force <= 0.0 ||
+         force < m_positionForceSpinBox->minimum() ||
+         force > m_positionForceSpinBox->maximum())) {
+      m_joystickSlider->setValue(0);
+      setStatus("Choose a valid positive closing force before using the 2FG joystick");
+      return;
+    }
+    if (std::isfinite(force) && force > 0.0) {
+      m_joystickForce = force;
+    }
     m_positionCommandActive = false;
     m_dragging = true;
     m_stopRequested = false;
@@ -428,7 +457,7 @@ RealtimeControlPanel::~RealtimeControlPanel() {
 }
 
 bool RealtimeControlPanel::eventFilter(QObject *i_watched, QEvent *i_event) {
-  if (m_forceCommandActive &&
+  if ((m_forceCommandActive || m_releaseOpenPending) &&
       ((i_watched == qApp && i_event->type() == QEvent::ApplicationDeactivate) ||
        (i_watched == window() && i_event->type() == QEvent::WindowDeactivate) ||
        (i_watched == this && i_event->type() == QEvent::Hide))) {
@@ -450,7 +479,6 @@ bool RealtimeControlPanel::eventFilter(QObject *i_watched, QEvent *i_event) {
 
 void RealtimeControlPanel::resizeEvent(QResizeEvent *i_event) {
   QWidget::resizeEvent(i_event);
-  updateWrappedLabelHeight(m_measuredLabel);
   updateWrappedLabelHeight(m_statusLabel);
   updateWrappedLabelHeight(m_safetyLabel);
 }
@@ -463,6 +491,9 @@ void RealtimeControlPanel::onInitialize() {
   m_dragging = false;
   m_positionCommandActive = false;
   m_forceCommandActive = false;
+  m_releaseOpenPending = false;
+  m_positionCommandForce = 30.0;
+  m_joystickForce = 30.0;
   m_forceGroup->setEnabled(false);
   m_stopRequested = true;
   m_directionGuardStopped = false;
@@ -479,6 +510,8 @@ void RealtimeControlPanel::onInitialize() {
   m_sharedState = std::make_shared<SharedState>();
   m_dragging = false;
   m_positionCommandActive = false;
+  m_positionCommandForce = 30.0;
+  m_joystickForce = 30.0;
   m_stopRequested = false;
   m_directionGuardStopped = false;
   m_limitsApplied = false;
@@ -514,11 +547,11 @@ void RealtimeControlPanel::onInitialize() {
   m_maxVelocitySpinBox->setSuffix(" m/s");
   m_maxVelocitySpinBox->setToolTip(
       "Joystick speed and 2FG position-approach limit; maximum is 0.3 m/s");
-  m_positionForceSpinBox->setRange(0.0, 40.0);
-  m_positionForceSpinBox->setValue(10.0);
+  m_positionForceSpinBox->setRange(30.0, 196.0);
+  m_positionForceSpinBox->setValue(30.0);
   m_positionForceSpinBox->setSuffix(" N");
-  m_positionForceSpinBox->setVisible(false);
-  m_positionForceCaption->setVisible(false);
+  m_positionForceSpinBox->setVisible(true);
+  m_positionForceCaption->setVisible(true);
   if (m_rgCoordinateProfile) {
     double maximumAngularVelocity = 0.1;
     readDouble("realtime_maximum_angular_velocity_rad_s",
@@ -539,11 +572,11 @@ void RealtimeControlPanel::onInitialize() {
     readDouble("realtime_maximum_position_force_n", maximumPositionForce);
     readDouble("realtime_default_position_force_n", defaultPositionForce);
     if (!std::isfinite(maximumPositionForce) || maximumPositionForce <= 0.0 ||
-        !std::isfinite(defaultPositionForce) || defaultPositionForce < 0.0) {
+        !std::isfinite(defaultPositionForce) || defaultPositionForce <= 0.0) {
       setStatus("Invalid RG realtime position-force configuration");
       return;
     }
-    m_positionForceSpinBox->setRange(0.0, maximumPositionForce);
+    m_positionForceSpinBox->setRange(0.1, maximumPositionForce);
     m_positionForceSpinBox->setValue(
         std::min(defaultPositionForce, maximumPositionForce));
     m_positionForceCaption->setVisible(true);
@@ -554,7 +587,7 @@ void RealtimeControlPanel::onInitialize() {
         m_savedMaximumVelocity, m_maxVelocitySpinBox->minimum(),
         m_maxVelocitySpinBox->maximum()));
   }
-  if (m_rgCoordinateProfile && std::isfinite(m_savedPositionForce)) {
+  if (std::isfinite(m_savedPositionForce)) {
     m_positionForceSpinBox->setValue(std::clamp(
         m_savedPositionForce, m_positionForceSpinBox->minimum(),
         m_positionForceSpinBox->maximum()));
@@ -570,6 +603,7 @@ void RealtimeControlPanel::onInitialize() {
   m_stateSubscription = m_node->create_subscription<RealtimeState>(
       m_stateTopic, rclcpp::SensorDataQoS(),
       [state](const RealtimeState::SharedPtr i_message) {
+        std::lock_guard<std::mutex> lock(state->typed_mutex);
         state->has_state.store(true, std::memory_order_release);
         state->realtime_active.store(i_message->realtime_active,
                                      std::memory_order_relaxed);
@@ -611,6 +645,8 @@ void RealtimeControlPanel::onInitialize() {
                                    std::memory_order_relaxed);
         state->missed_deadlines.store(i_message->missed_deadlines,
                                       std::memory_order_relaxed);
+        state->requested_command_sequence.store(i_message->requested_command_sequence);
+        state->applied_command_sequence.store(i_message->applied_command_sequence);
         state->last_state_ns.store(steady_now_ns(), std::memory_order_release);
       });
   m_limitSubscription =
@@ -655,6 +691,12 @@ void RealtimeControlPanel::onInitialize() {
 }
 
 void RealtimeControlPanel::beginPositionCommand(double i_targetPositionM) {
+  beginPositionCommand(i_targetPositionM, m_positionForceSpinBox->value());
+}
+
+void RealtimeControlPanel::beginPositionCommand(double i_targetPositionM,
+                                               double i_forceN) {
+  m_releaseOpenPending = false;
   if (m_forceCommandActive) stopRealtime("switch to position control");
   if (!m_commandPublisher || !m_sharedState ||
       !m_sharedState->has_limits.load(std::memory_order_acquire)) {
@@ -672,6 +714,15 @@ void RealtimeControlPanel::beginPositionCommand(double i_targetPositionM) {
   }
 
   const double target = std::clamp(i_targetPositionM, minimum, maximum);
+  const double force = i_forceN;
+  if (!std::isfinite(force) || force <= 0.0 ||
+      force < m_positionForceSpinBox->minimum() ||
+      force > m_positionForceSpinBox->maximum()) {
+    setStatus(m_rgCoordinateProfile
+                  ? "Choose a valid positive force before sending a realtime position command"
+                  : "Choose a valid positive closing force before sending a 2FG realtime position command");
+    return;
+  }
   const bool taskValid =
       m_sharedState->task_position_valid.load(std::memory_order_acquire);
   const double current =
@@ -686,6 +737,7 @@ void RealtimeControlPanel::beginPositionCommand(double i_targetPositionM) {
   m_directionGuard.reset();
   m_directionGuardStopped = false;
   m_positionTracker.reset(target);
+  m_positionCommandForce = force;
   m_positionCommandStartedNs = steady_now_ns();
   m_positionCommandActive = true;
   m_stopRequested = false;
@@ -704,9 +756,10 @@ void RealtimeControlPanel::publishPositionCommand() {
   message.mode = RealtimeCommand::POSITION;
   message.task_position = m_positionTracker.target();
   if (m_rgCoordinateProfile) {
-    message.force = m_positionForceSpinBox->value();
+    message.force = m_positionCommandForce;
   } else {
     message.task_velocity = m_maxVelocitySpinBox->value();
+    message.force = m_positionCommandForce;
   }
   m_commandPublisher->publish(message);
 }
@@ -725,6 +778,7 @@ void RealtimeControlPanel::publishJoystickCommand() {
     message.mechanism_angular_velocity = velocity;
   } else {
     message.task_velocity = velocity;
+    message.force = m_joystickForce;
   }
   m_commandPublisher->publish(message);
 }
@@ -733,21 +787,25 @@ bool RealtimeControlPanel::forceCommandReady(int *o_model) const {
   using GS = onrobot_gripper_msgs::msg::GripperState;
   if (m_rgCoordinateProfile || !m_node || !m_commandPublisher || !m_sharedState)
     return false;
+  std::lock_guard<std::mutex> lock(m_sharedState->typed_mutex);
+  const auto stateReceived = m_sharedState->last_state_ns.load();
+  const auto limitsReceived = m_sharedState->limits_received_ns.load();
+  const auto typedReceived = m_sharedState->typed_received_ns;
+  // Read receive times before sampling now: a concurrent callback must not
+  // make a fresh publication appear to come from the future.
   const auto now = steady_now_ns();
   const auto fresh = [now](std::int64_t then) {
     return then > 0 && now >= then && now - then <= 500000000LL;
   };
   if (!m_sharedState->has_state.load() || !m_sharedState->has_limits.load() ||
-      !fresh(m_sharedState->last_state_ns.load()) ||
-      !fresh(m_sharedState->limits_received_ns.load()) ||
+      !fresh(stateReceived) || !fresh(limitsReceived) ||
       m_sharedState->faulted.load() || !m_sharedState->task_position_valid.load() ||
       !std::isfinite(m_sharedState->task_position.load())) return false;
-  std::lock_guard<std::mutex> lock(m_sharedState->typed_mutex);
   const auto &state = m_sharedState->typed;
   const int model = state.model == "2fg7" ? 7 : state.model == "2fg14" ? 14 : 0;
   if (o_model) *o_model = model;
   const double age = state.sample_age.sec + state.sample_age.nanosec * 1e-9;
-  return model != 0 && fresh(m_sharedState->typed_received_ns) &&
+  return model != 0 && fresh(typedReceived) &&
          age >= 0.0 && age <= 0.5 && state.sample_sequence > 0 &&
          state.realtime_force_control_available &&
          state.mapping_validity == GS::MAPPING_VALID &&
@@ -758,6 +816,7 @@ bool RealtimeControlPanel::forceCommandReady(int *o_model) const {
 }
 
 void RealtimeControlPanel::beginForceCommand() {
+  m_releaseOpenPending = false;
   int model = 0;
   if (!forceCommandReady(&model)) {
     setStatus("Force control unavailable: check fresh state, backend and firmware");
@@ -819,18 +878,54 @@ void RealtimeControlPanel::publishForceCommand() {
 
 void RealtimeControlPanel::releaseForceGrip() {
   if (!forceCommandReady()) {
-    setStatus("Release unavailable: fresh 2FG state and limits are required");
+    setStatus("Release / open unavailable: waiting for fresh state and live limits");
     return;
   }
-  const double target = m_sharedState->maximum_aperture_m.load();
-  const double current = m_sharedState->task_position.load();
-  // Margin beyond firmware's strict >1 mm rule, including 0.1 mm encoding.
-  if (target - current < 0.002) {
-    setStatus("Release needs at least 2 mm of opening travel; support the workpiece and Stop");
+  const double target =
+      m_sharedState->maximum_aperture_m.load(std::memory_order_relaxed);
+  const double force = m_positionForceSpinBox->value();
+  if (!std::isfinite(force) || force <= 0.0 ||
+      force < m_positionForceSpinBox->minimum() ||
+      force > m_positionForceSpinBox->maximum()) {
+    setStatus("Choose a valid positive force before releasing and opening");
     return;
   }
   m_targetPositionSpinBox->setValue(target);
-  beginPositionCommand(target); // POSITION maps to selector 6, force = zero.
+  // Retire a device hold even if it was started outside this panel or the
+  // previous local Stop has already been sent. The next position command is
+  // ordered after Stop by the realtime controller.
+  {
+    std::lock_guard<std::mutex> lock(m_sharedState->typed_mutex);
+    m_releaseStopBaseline = std::max(
+        m_sharedState->requested_command_sequence.load(),
+        m_sharedState->applied_command_sequence.load());
+  }
+  stopRealtime("release and open", true);
+  m_releaseTargetM = target;
+  m_releaseForceN = force;
+  m_releaseStartedNs = steady_now_ns();
+  m_releaseOpenPending = true;
+  setStatus("Release / open: waiting for Stop acknowledgement");
+}
+
+void RealtimeControlPanel::updateReleaseOpen() {
+  if (!forceCommandReady() || steady_now_ns() - m_releaseStartedNs > 1500000000LL) {
+    stopRealtime("release Stop acknowledgement unavailable", true);
+    return;
+  }
+  bool acknowledged = false;
+  {
+    std::lock_guard<std::mutex> lock(m_sharedState->typed_mutex);
+    const auto applied = m_sharedState->applied_command_sequence.load();
+    acknowledged = m_sharedState->last_state_ns.load() > m_releaseStartedNs &&
+        !m_sharedState->realtime_active.load() &&
+        m_sharedState->typed.active_mode == RealtimeState::IDLE &&
+        applied > m_releaseStopBaseline &&
+        applied == m_sharedState->requested_command_sequence.load();
+  }
+  if (acknowledged) {
+    beginPositionCommand(m_releaseTargetM, m_releaseForceN);
+  }
 }
 
 void RealtimeControlPanel::updateForceControls() {
@@ -842,6 +937,19 @@ void RealtimeControlPanel::updateForceControls() {
   m_forceHint->setFixedHeight(hintHeight);
   updateWrappedLabelHeight(m_gripStateLabel);
   int model = 0;
+  if (!m_rgCoordinateProfile) {
+    std::lock_guard<std::mutex> lock(m_sharedState->typed_mutex);
+    model = m_sharedState->typed.model == "2fg14"
+                ? 14
+                : m_sharedState->typed.model == "2fg7" ? 7 : 0;
+    if (model == 7 || model == 14) {
+      const double minimum = model == 7 ? 30.0 : 40.0;
+      const double maximum = model == 7 ? 95.0 : 196.0;
+      m_positionForceSpinBox->setRange(minimum, maximum);
+      m_positionForceSpinBox->setValue(std::clamp(
+          m_positionForceSpinBox->value(), minimum, maximum));
+    }
+  }
   const bool ready = forceCommandReady(&model);
   if (m_forceCommandActive && (!ready || model != m_forceModel))
     stopRealtime("force state unavailable");
@@ -862,9 +970,10 @@ void RealtimeControlPanel::updateForceControls() {
       : state.force_valid ? "No grip detected" : "No grip detected; force feedback unavailable");
 }
 
-void RealtimeControlPanel::stopRealtime(const char *i_reason) {
+void RealtimeControlPanel::stopRealtime(const char *i_reason, bool i_forcePublish) {
   m_forceCommandActive = false;
-  if (m_stopRequested) {
+  m_releaseOpenPending = false;
+  if (m_stopRequested && !i_forcePublish) {
     return;
   }
   m_stopRequested = true;
@@ -1051,7 +1160,6 @@ void RealtimeControlPanel::updateStatus() {
       return;
     }
   }
-  m_measuredLabel->clear();
   m_taskPositionValue->setText(
       task_valid ? QString::number(task_position, 'f', 4) : QString::fromUtf8("\u2014"));
   m_taskVelocityValue->setText(
@@ -1082,6 +1190,11 @@ void RealtimeControlPanel::updateStatus() {
   }
   if (!task_valid) {
     setStatus("State online; task-aperture feedback is unavailable");
+    return;
+  }
+
+  if (m_releaseOpenPending) {
+    setStatus("Release / open: waiting for Stop acknowledgement");
     return;
   }
 

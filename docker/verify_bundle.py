@@ -57,7 +57,7 @@ def verify(root):
     version = packages['runtime']['version']
     declared = []
     for role, expected_name in (
-            ('runtime', 'libonrobot-tool-api0'),
+            ('runtime', 'libonrobot-tool-api1'),
             ('development', 'libonrobot-tool-api-dev')):
         entry = packages[role]
         relative = Path(entry['file'])
@@ -77,7 +77,7 @@ def verify(root):
         dependencies = subprocess.check_output(
             ['dpkg-deb', '--field', str(package), 'Depends'], text=True)
         if role == 'development' and not re.search(
-                r'(?:^|,)\s*libonrobot-tool-api0\s*\(=\s*' +
+                r'(?:^|,)\s*libonrobot-tool-api1\s*\(=\s*' +
                 re.escape(version) + r'\s*\)\s*(?:,|$)', dependencies):
             raise ValueError('development DEB must pin the exact runtime version')
         declared.append(package)

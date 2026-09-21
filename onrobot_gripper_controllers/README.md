@@ -63,7 +63,7 @@ for grip, release and Stop; the typed state advertises backend availability.
 
 The diagnostic status uses the standard `diagnostic_msgs/msg/DiagnosticArray`
 shape. It contains one status for this broadcaster, with model/profile,
-connection, freshness, safety, health-counter, and available device-register
+connection, freshness, safety, health-counter, and available device-telemetry
 keys. `status.level` and `status.message` summarize health; consumers should
 use the typed state validity flags before using an individual numeric value.
 The RG force key is command-derived, not measured contact force, and the 3FG
@@ -82,8 +82,11 @@ is clear, `~/recover` requests an explicit Stop/recovery transition. A safety
 DC error requires a physical power cycle of the gripper. The released firmware
 does not expose an operational Modbus reboot command; its firmware-update reset
 mechanism is not a recovery interface and is intentionally not used by this
-controller. ROS reporting is supplementary and is not a
-safety-rated stopping function.
+controller. A successful service response confirms that a request was queued,
+not that hardware admitted or completed recovery. See the
+[state and recovery guide](../docs/state-diagnostics-and-recovery.md) for the
+result, inactive-call, and controller-reload behavior. ROS reporting is
+supplementary and is not a safety-rated stopping function.
 
 Use the interactive showcase to exercise the supported control path:
 
