@@ -79,7 +79,7 @@ Session, fault, and counters:
 | `task_position` | `float64` | m | External task aperture for 2FG and RG |
 | `task_velocity` | `float64` | m/s | 2FG approach limit or signed velocity |
 | `mechanism_angular_velocity` | `float64` | rad/s | RG velocity command |
-| `force` | `float64` | N | Positive closing-force target in 2FG force modes; RG position force limit |
+| `force` | `float64` | N | Positive closing-force target in every 2FG realtime mode; RG position force limit |
 
 All motion modes are streaming interfaces. Refresh commands before the receipt
 timeout. Stop is a one-shot ordered command. Force-position and force-velocity
@@ -87,7 +87,8 @@ modes are supported on compatible real 2FG devices. Check
 `GripperState.realtime_force_control_available`. Fake approach motion does not
 produce contact or measured force; the Isaac joint bridge does not implement
 force regulation. See the [force controls](../../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip)
-for explicit hold, release and Stop behavior.
+for explicit hold and Stop behavior. The 2FG position controls require a
+positive force target; use Open or Center / stop to leave realtime control.
 
 ## `RealtimeState`
 

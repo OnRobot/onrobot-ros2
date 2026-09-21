@@ -164,6 +164,8 @@ hardware_interface::CallbackReturn OnRobotGripperSystem::on_init(
   setNan(m_realtimeForceCommand);
   setNan(m_realtimeSequenceCommand);
   setNan(m_faultRecoverySequenceCommand);
+  m_faultRecoverySequenceAckState = 0.0;
+  m_faultRecoveryAdmissionState = 0.0;
   setNan(m_stopSequenceCommand);
   resetDiagnostics(m_diagnosticStates);
   try {
@@ -226,6 +228,15 @@ OnRobotGripperSystem::export_state_interfaces() {
     interfaces.emplace_back(m_jointName, "watchdog_stops",
                             &m_watchdogStopsState);
     interfaces.emplace_back(m_jointName, "reconnects", &m_reconnectsState);
+    if (has_state_interface("fault_recovery_command_sequence_ack")) {
+      interfaces.emplace_back(m_jointName,
+                              "fault_recovery_command_sequence_ack",
+                              &m_faultRecoverySequenceAckState);
+    }
+    if (has_state_interface("fault_recovery_command_admission")) {
+      interfaces.emplace_back(m_jointName, "fault_recovery_command_admission",
+                              &m_faultRecoveryAdmissionState);
+    }
     interfaces.emplace_back(m_jointName, "last_cycle_duration",
                             &m_lastCycleDurationState);
     interfaces.emplace_back(m_jointName, "minimum_task_aperture",
@@ -510,6 +521,9 @@ OnRobotGripperSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       if (admission == onrobot::CommandAdmission::Busy) {
         return hardware_interface::return_type::OK;
       }
+      m_faultRecoverySequenceAckState = static_cast<double>(sequence);
+      m_faultRecoveryAdmissionState =
+          admission == onrobot::CommandAdmission::Accepted ? 1.0 : 2.0;
       if (admission == onrobot::CommandAdmission::Accepted) {
         m_retiredPositionCommand = m_positionCommand;
         if (m_conventionalSequenceCommand > 0.0) {
@@ -518,6 +532,12 @@ OnRobotGripperSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
         m_forceConventionalCommand = false;
         m_recoveryReconnectsAtRequest = m_cachedState.reconnects;
         m_recoveryPending = true;
+      } else {
+        RCLCPP_ERROR(rclcpp::get_logger("onrobot_gripper_system"),
+                     "2FG recovery sequence %llu rejected by SDK admission "
+                     "with result %u",
+                     static_cast<unsigned long long>(sequence),
+                     static_cast<unsigned int>(admission));
       }
       m_lastFaultRecoverySequence = sequence;
     }
@@ -583,13 +603,15 @@ OnRobotGripperSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
             admission = m_session->tryCommand(
                 onrobot::RealtimeCommand{onrobot::RealtimePositionCommand{
                     m_realtimeTaskPositionCommand * 1000.0,
-                    m_realtimeTaskVelocityCommand * 1000.0}},
+                    m_realtimeTaskVelocityCommand * 1000.0,
+                    m_realtimeForceCommand}},
                 admittedSequence);
             break;
           case 1:
             admission = m_session->tryCommand(
                 onrobot::RealtimeCommand{onrobot::RealtimeVelocityCommand{
-                    m_realtimeTaskVelocityCommand * 1000.0}},
+                    m_realtimeTaskVelocityCommand * 1000.0,
+                    m_realtimeForceCommand}},
                 admittedSequence);
             break;
           case 2:

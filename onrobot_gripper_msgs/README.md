@@ -35,7 +35,7 @@ stream, and the broadcaster's `diagnostics_topic` parameter can select another
 remappable name.
 
 The array contains connection, fault, safety, freshness, and health-counter
-keys plus the available status-register values for the selected model. Values
+keys plus the available device telemetry for the selected model. Values
 are named with their units where the unit is part of the public contract, for
 example `diagnostic_external_width_mm`,
 `diagnostic_realtime_linear_velocity`, or `diagnostic_temperature`. Missing or
@@ -72,5 +72,5 @@ Positive force targets still request a closing grip. An application that wants
 a positive display magnitude must negate a valid closing feedback value; it
 must not change the command sign. RG
 `diagnostic_command_force` is a command-derived echo because RG devices do not
-provide a measured force register, and 3FG `diagnostic_force_percent` is a
+provide measured force feedback, and 3FG `diagnostic_force_percent` is a
 percentage rather than Newtons.

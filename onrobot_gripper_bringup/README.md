@@ -133,11 +133,19 @@ claiming the position or realtime motion resources:
 ros2 service call /recovery_controller/recover std_srvs/srv/Trigger '{}'
 ```
 
-The service response means the request was queued, not that reconnection has
-already succeeded. Use `/gripper_state_broadcaster/state` or `/diagnostics` to
-observe the connection transition, fault code, and reconnect counter.
-The typed state reports `CONNECTION_RECOVERING` while the worker is performing
-the reconnect and returns to `CONNECTION_FAULTED` if any recovery step fails.
+The service accepts requests only while the recovery controller is active and
+the device reports a recoverable fault. A successful response means the request
+was queued, not that the hardware admitted it or that reconnection succeeded.
+Use `/gripper_state_broadcaster/state`, `/diagnostics`, and the controller log
+to observe admission and completion. The typed state reports
+`CONNECTION_RECOVERING` while the worker reconnects and returns to
+`CONNECTION_FAULTED` if recovery fails. A rejected request is not retried
+automatically. After correcting the cause, submit a new request if the device
+is still faulted; the previous command is not replayed. Inactive calls are rejected.
+An unresolved request is retained across deactivation/reactivation, and
+cleanup/unload is refused until it reaches a terminal result. See the
+[state and recovery guide](../docs/state-diagnostics-and-recovery.md) for the
+full behavior and RG safety conditions.
 
 The fake backend supports deterministic test-only motion rate and stall
 injection. The standard action reports cancellation, preemption, reached-goal,

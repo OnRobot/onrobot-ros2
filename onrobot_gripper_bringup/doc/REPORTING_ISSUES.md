@@ -143,7 +143,7 @@ Missing information or tests not performed:
 ```
 
 For a force spike or NaN fault, retain the unfiltered numeric values. State
-validity, fault/status registers and timestamps distinguish an actual device
+validity, fault/status information and timestamps distinguish an actual device
 reading from stale or invalid data. Negative closing force is the current 2FG
 convention; do not flip its sign, clip it to the command limit, or replace it
 with a held value before sharing. `TF_NAN_INPUT` proves invalid transform input,

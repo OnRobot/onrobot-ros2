@@ -50,10 +50,11 @@ are 30–95 N for 2FG7 and 40–196 N for 2FG14. Closing force feedback is negat
 following the firmware convention; the target is positive.
 
 Releasing the button or losing focus stops force control. **Release / open**
-sends a zero-force position command to the live open limit; at least 2 mm of
-opening travel must remain. **Center / stop** stops without commanding an opening
-position. Support the workpiece before stopping or releasing; these controls
-are not safety-rated. An approach without reported contact times out after
+requests Stop, waits for its acknowledgement, then opens to the live limit using
+the configured positive position-force target. If state becomes stale or Stop
+is not acknowledged, opening is cancelled. **Center / stop** only stops. Support the workpiece
+before stopping or opening. Neither control is safety-rated. An approach
+without reported contact times out after
 30 seconds. The panel displays the device's `grip_detected` flag, not a
 prediction based on reaching a target. Validate actual force and retention
 for your fingers and workpiece.

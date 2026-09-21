@@ -190,8 +190,12 @@ command independently:
 ```bash
 ros2 topic pub --rate 20 --times 40 /realtime_controller/command \
   onrobot_gripper_msgs/msg/RealtimeCommand \
-  '{header: auto, mode: 0, task_position: 0.0365, task_velocity: 0.01, force: 0.0}'
+  '{header: auto, mode: 0, task_position: 0.0365, task_velocity: 0.01, force: 30.0}'
 ```
+
+For 2FG14 use a positive force target of at least 40 N. Realtime motion
+requires a positive force target; use the explicit Stop control when ending a
+realtime stream.
 
 Confirm that both visualizations reach the same midpoint. Use the panel's
 velocity joystick for the remaining checks:

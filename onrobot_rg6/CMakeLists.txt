@@ -3,22 +3,9 @@ project(onrobot_rg6)
 
 find_package(ament_cmake REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(Python3 REQUIRED COMPONENTS Interpreter)
-  find_package(ament_lint_auto REQUIRED)
-  # Asset files do not carry per-file copyright banners.
-  set(ament_cmake_copyright_FOUND TRUE)
-  # This package contains no C or C++ source files.
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-
-  add_test(
-    NAME rg6_showcase_contract
-    COMMAND
-      ${Python3_EXECUTABLE}
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_showcase_contract.py
-      ${CMAKE_CURRENT_SOURCE_DIR}
-  )
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 ament_package()

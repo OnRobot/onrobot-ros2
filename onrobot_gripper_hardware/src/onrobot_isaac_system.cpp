@@ -80,6 +80,10 @@ hardware_interface::CallbackReturn OnRobotIsaacSystem::on_init(
           "Isaac backend supports models 2fg7, 2fg14, rg2, and rg6");
     }
     rg_model_ = model == "rg2" || model == "rg6";
+    if (model == "2fg14") {
+      realtime_force_min_ = 40.0;
+      realtime_force_max_ = 196.0;
+    }
     if (info_.joints.size() != 2 ||
         !endsWith(info_.joints.front().name, "grip_stroke") ||
         (!endsWith(info_.joints.back().name, "finger_stroke") &&
@@ -135,6 +139,8 @@ hardware_interface::CallbackReturn OnRobotIsaacSystem::on_init(
   realtime_force_command_ = nan();
   realtime_sequence_command_ = nan();
   fault_recovery_sequence_command_ = nan();
+  fault_recovery_sequence_ack_state_ = 0.0;
+  fault_recovery_admission_state_ = 0.0;
   stop_sequence_command_ = nan();
   received_physical_velocity_ = nan();
   sample_age_state_ = nan();
@@ -177,6 +183,16 @@ OnRobotIsaacSystem::export_state_interfaces() {
     result.emplace_back(task_joint_, "active_mode", &active_mode_state_);
     result.emplace_back(task_joint_, "connection_state", &connection_state_);
     result.emplace_back(task_joint_, "faulted", &faulted_state_);
+    if (hasState(info_.joints.front(),
+                 "fault_recovery_command_sequence_ack")) {
+      result.emplace_back(task_joint_,
+                          "fault_recovery_command_sequence_ack",
+                          &fault_recovery_sequence_ack_state_);
+    }
+    if (hasState(info_.joints.front(), "fault_recovery_command_admission")) {
+      result.emplace_back(task_joint_, "fault_recovery_command_admission",
+                          &fault_recovery_admission_state_);
+    }
     result.emplace_back(task_joint_, "fault_code", &fault_code_state_);
     if (hasState(info_.joints.front(), "firmware_qualification")) {
       result.emplace_back(task_joint_, "firmware_qualification",
@@ -501,9 +517,16 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     const bool fresh_sequence =
         valid_sequence && sequence != last_fault_recovery_sequence_;
     fault_recovery_sequence_command_ = nan();
+    if (!valid_sequence) {
+      return hardware_interface::return_type::ERROR;
+    }
+    if (fresh_sequence) {
+      last_fault_recovery_sequence_ = sequence;
+      fault_recovery_sequence_ack_state_ = static_cast<double>(sequence);
+    }
     if (fresh_sequence && task_position_valid_state_ > 0.0 &&
         currentFeedbackAvailable()) {
-      last_fault_recovery_sequence_ = sequence;
+      fault_recovery_admission_state_ = 1.0;
       faulted_state_ = 0.0;
       fault_code_state_ = 0.0;
       feedback_ready_ = true;
@@ -525,6 +548,9 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       active_mode_state_ = 0.0;
       busy_state_ = 0.0;
       return hardware_interface::return_type::OK;
+    }
+    if (fresh_sequence) {
+      fault_recovery_admission_state_ = 2.0;
     }
   }
 
@@ -608,7 +634,10 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       const bool valid_payload =
           std::isfinite(realtime_task_position_command_) &&
           std::isfinite(realtime_task_velocity_command_) &&
-          std::isfinite(realtime_force_command_);
+          std::isfinite(realtime_force_command_) &&
+          (rg_model_ ||
+           (realtime_force_command_ >= realtime_force_min_ &&
+            realtime_force_command_ <= realtime_force_max_));
       if (mode_integral && valid_payload &&
           (realtime_mode_ == 0 || realtime_mode_ == 1)) {
         requested_command_sequence_state_ = static_cast<double>(sequence);

@@ -64,6 +64,15 @@ REALTIME_POSITION_MOTION_QUALIFIED_MODELS = SUPPORTED_HIL_MODELS
 ROS_CALLBACK_DRAIN_LIMIT = 16
 REALTIME_COMMAND_REFRESH_PERIOD_S = 0.02
 REALTIME_POSITION_MAXIMUM_VELOCITY_M_S = 0.015
+# The position selector carries a force target for every supported family.
+# Keep the HIL runner away from the firmware-sensitive 2FG zero-force request;
+# RG values are positive as well because RG position commands encode force.
+REALTIME_POSITION_FORCE_TARGET_N = {
+    '2fg7': 30.0,
+    '2fg14': 40.0,
+    'rg2': 10.0,
+    'rg6': 10.0,
+}
 REALTIME_TARGET_HOLD_S = 0.12
 REALTIME_QUALIFICATION_MAX_TRAVEL_M = 0.004
 REALTIME_QUALIFICATION_START_MARGIN_M = 0.002
@@ -169,12 +178,16 @@ class RealtimePositionCommandStream:
     """Refresh one bounded position command independently of rendering."""
 
     def __init__(self, publisher, stamp, position: float,
-                 period: float = REALTIME_COMMAND_REFRESH_PERIOD_S):
+                 period: float = REALTIME_COMMAND_REFRESH_PERIOD_S,
+                 force_n: float = 30.0):
         """Store an immutable target and the ROS publishing dependencies."""
+        if not math.isfinite(force_n) or force_n <= 0.0:
+            raise ValueError('realtime position force target must be positive')
         self._publisher = publisher
         self._stamp = stamp
         self._position = position
         self._period = period
+        self._force_n = force_n
         self._stop = threading.Event()
         self._thread = None
         self._error = None
@@ -215,7 +228,7 @@ class RealtimePositionCommandStream:
                 command.mode = RealtimeCommand.POSITION
                 command.task_position = self._position
                 command.task_velocity = REALTIME_POSITION_MAXIMUM_VELOCITY_M_S
-                command.force = 0.0
+                command.force = self._force_n
                 self._publisher.publish(command)
                 self.publish_count += 1
                 next_publish += self._period
@@ -845,7 +858,8 @@ class HardwareObservation:
         stream = RealtimePositionCommandStream(
             self.realtime_publisher,
             lambda: self.node.get_clock().now().to_msg(),
-            position)
+            position,
+            force_n=REALTIME_POSITION_FORCE_TARGET_N[self.expected_model])
         stop_result = None
         try:
             stream.start()

@@ -25,27 +25,9 @@ install(PROGRAMS scripts/moveit_gripper_smoke.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME moveit_gripper_smoke)
 
-if(BUILD_TESTING)
-  find_package(moveit_core REQUIRED)
-  find_package(srdfdom REQUIRED)
-  find_package(urdf REQUIRED)
-  add_executable(probe_planning_geometry tests/probe_planning_geometry.cpp)
-  target_compile_features(probe_planning_geometry PRIVATE cxx_std_17)
-  ament_target_dependencies(probe_planning_geometry moveit_core srdfdom urdf onrobot_gripper_description)
-  find_package(ament_cmake_pytest REQUIRED)
-  ament_add_pytest_test(planning_geometry tests/test_planning_geometry.py TIMEOUT 90
-    APPEND_ENV "PLANNING_GEOMETRY_PROBE=$<TARGET_FILE:probe_planning_geometry>")
-  ament_add_pytest_test(physical_adapter tests/test_physical_adapter.py TIMEOUT 180)
-  ament_add_pytest_test(
-    moveit_contract
-    tests/test_moveit_contract.py
-    TIMEOUT 30
-  )
-  ament_add_pytest_test(
-    moveit_execution
-    tests/test_moveit_execution.py
-    TIMEOUT 480
-  )
+set(onrobot_internal_tests "${CMAKE_CURRENT_SOURCE_DIR}/../internal/${PROJECT_NAME}/tests.cmake")
+if(BUILD_TESTING AND EXISTS "${onrobot_internal_tests}")
+  include("${onrobot_internal_tests}")
 endif()
 
 ament_package()

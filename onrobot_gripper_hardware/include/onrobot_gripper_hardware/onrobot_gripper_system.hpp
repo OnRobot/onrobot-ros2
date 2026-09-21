@@ -123,6 +123,8 @@ private:
   double m_watchdogStopsState{0.0};
   double m_reconnectsState{0.0};
   double m_lastCycleDurationState{0.0};
+  double m_faultRecoverySequenceAckState{0.0};
+  double m_faultRecoveryAdmissionState{0.0};
   std::array<double, onrobot_gripper_msgs::kDiagnosticInterfaceCount>
       m_diagnosticStates{};
   double m_realtimeModeCommand{0.0};

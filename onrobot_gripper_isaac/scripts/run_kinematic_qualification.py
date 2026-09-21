@@ -49,6 +49,16 @@ from std_srvs.srv import Trigger
 
 RG_MODELS = frozenset(('rg2', 'rg6'))
 
+# 2FG realtime selectors require an explicit positive closing-force target.
+# RG position commands carry a positive force field too; RG velocity commands
+# have no force target and intentionally retain their protocol-default field.
+REALTIME_POSITION_FORCE_TARGET_N = {
+    '2fg7': 30.0,
+    '2fg14': 40.0,
+    'rg2': 10.0,
+    'rg6': 10.0,
+}
+
 
 def _default_bridge() -> Path:
     root = package_root()
@@ -562,6 +572,9 @@ class QualificationNode:
                 command.mechanism_angular_velocity = velocity
             else:
                 command.task_velocity = velocity
+                command.force = REALTIME_POSITION_FORCE_TARGET_N[self.model]
+            if self.rg_model and mode == RealtimeCommand.POSITION:
+                command.force = REALTIME_POSITION_FORCE_TARGET_N[self.model]
             self.realtime_publisher.publish(command)
             published += 1
             rclpy.spin_once(self.node, timeout_sec=0.02)

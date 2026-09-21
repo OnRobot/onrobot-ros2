@@ -141,6 +141,8 @@ hardware_interface::CallbackReturn OnRobotRgSystem::on_init(
   setNan(m_realtimeForceCommand);
   setNan(m_realtimeSequenceCommand);
   setNan(m_faultRecoverySequenceCommand);
+  m_faultRecoverySequenceAckState = 0.0;
+  m_faultRecoveryAdmissionState = 0.0;
   setNan(m_stopSequenceCommand);
   resetDiagnostics(m_diagnosticStates);
   try {
@@ -222,6 +224,16 @@ OnRobotRgSystem::export_state_interfaces() {
                             &m_watchdogStopsState);
     interfaces.emplace_back(m_apertureJointName, "reconnects",
                             &m_reconnectsState);
+    if (hasState(*aperture, "fault_recovery_command_sequence_ack")) {
+      interfaces.emplace_back(m_apertureJointName,
+                              "fault_recovery_command_sequence_ack",
+                              &m_faultRecoverySequenceAckState);
+    }
+    if (hasState(*aperture, "fault_recovery_command_admission")) {
+      interfaces.emplace_back(m_apertureJointName,
+                              "fault_recovery_command_admission",
+                              &m_faultRecoveryAdmissionState);
+    }
     interfaces.emplace_back(m_apertureJointName, "last_cycle_duration",
                             &m_lastCycleDurationState);
   }
@@ -504,11 +516,26 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       return hardware_interface::return_type::ERROR;
     }
     if (sequence != m_lastFaultRecoverySequence) {
+      if (m_safetyStatusValidState < 0.5 || m_safety1PushedState > 0.5 ||
+          m_safety2PushedState > 0.5 || m_safetyDcErrorState > 0.5) {
+        m_faultRecoverySequenceAckState = static_cast<double>(sequence);
+        m_faultRecoveryAdmissionState = 2.0;
+        m_lastFaultRecoverySequence = sequence;
+        RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
+                     "RG recovery sequence %llu rejected because safety "
+                     "state is unavailable or not clear",
+                     static_cast<unsigned long long>(sequence));
+        setNan(m_faultRecoverySequenceCommand);
+        return hardware_interface::return_type::OK;
+      }
       uint64_t sessionSequence = 0;
       const auto admission = m_session->tryRequestRecovery(sessionSequence);
       if (admission == onrobot::CommandAdmission::Busy) {
         return hardware_interface::return_type::OK;
       }
+      m_faultRecoverySequenceAckState = static_cast<double>(sequence);
+      m_faultRecoveryAdmissionState =
+          admission == onrobot::CommandAdmission::Accepted ? 1.0 : 2.0;
       if (admission == onrobot::CommandAdmission::Accepted) {
         m_retiredPositionCommand = m_positionCommand;
         if (m_conventionalSequenceCommand > 0.0) {
@@ -517,6 +544,12 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
         m_forceConventionalCommand = false;
         m_recoveryReconnectsAtRequest = m_cachedState.reconnects;
         m_recoveryPending = true;
+      } else {
+        RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
+                     "RG recovery sequence %llu rejected by SDK admission "
+                     "with result %u",
+                     static_cast<unsigned long long>(sequence),
+                     static_cast<unsigned int>(admission));
       }
       m_lastFaultRecoverySequence = sequence;
     }

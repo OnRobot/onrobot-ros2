@@ -51,7 +51,8 @@ From the workspace root:
 source /opt/ros/jazzy/setup.bash
 rosdep install --from-paths src --ignore-src -r -y \
   --skip-keys onrobot_tool_api
-colcon build --symlink-install --cmake-args -DBUILD_TESTING=OFF
+colcon build --base-paths src/onrobot-ros2 --packages-up-to onrobot_ros2 \
+  --symlink-install --cmake-args -DBUILD_TESTING=OFF
 source install/setup.bash
 ```
 

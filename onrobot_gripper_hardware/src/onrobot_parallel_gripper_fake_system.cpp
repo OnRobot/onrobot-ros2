@@ -139,6 +139,8 @@ hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_init(
   realtime_force_command_ = nan();
   realtime_sequence_command_ = nan();
   fault_recovery_sequence_command_ = nan();
+  fault_recovery_sequence_ack_state_ = 0.0;
+  fault_recovery_admission_state_ = 0.0;
   stop_sequence_command_ = nan();
   conventional_sequence_command_ = nan();
   force_conventional_command_ = false;
@@ -191,6 +193,16 @@ OnRobotParallelGripperFakeSystem::export_state_interfaces() {
     result.emplace_back("grip_stroke", "connection_state",
                         &connection_state_);
     result.emplace_back("grip_stroke", "faulted", &faulted_state_);
+    if (hasState(info_.joints.front(),
+                 "fault_recovery_command_sequence_ack")) {
+      result.emplace_back("grip_stroke",
+                          "fault_recovery_command_sequence_ack",
+                          &fault_recovery_sequence_ack_state_);
+    }
+    if (hasState(info_.joints.front(), "fault_recovery_command_admission")) {
+      result.emplace_back("grip_stroke", "fault_recovery_command_admission",
+                          &fault_recovery_admission_state_);
+    }
     result.emplace_back("grip_stroke", "fault_code", &fault_code_state_);
     if (hasState(info_.joints.front(), "firmware_qualification")) {
       result.emplace_back("grip_stroke", "firmware_qualification",
@@ -327,11 +339,23 @@ hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
   bool stop_issued = false;
 
   if (std::isfinite(fault_recovery_sequence_command_)) {
-    last_fault_recovery_sequence_ =
-        static_cast<uint64_t>(fault_recovery_sequence_command_);
+    uint64_t sequence = 0;
+    if (!decodeCommandSequence(fault_recovery_sequence_command_, sequence)) {
+      fault_recovery_sequence_command_ = nan();
+      return hardware_interface::return_type::ERROR;
+    }
+    if (sequence != last_fault_recovery_sequence_) {
+      last_fault_recovery_sequence_ = sequence;
+      fault_recovery_sequence_ack_state_ = static_cast<double>(sequence);
+      if (faulted_state_ > 0.5) {
+        fault_recovery_admission_state_ = 1.0;
+        faulted_state_ = 0.0;
+        fault_code_state_ = 0.0;
+      } else {
+        fault_recovery_admission_state_ = 2.0;
+      }
+    }
     fault_recovery_sequence_command_ = nan();
-    faulted_state_ = 0.0;
-    fault_code_state_ = 0.0;
   }
 
   if (!std::isnan(stop_sequence_command_)) {
@@ -412,21 +436,38 @@ hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
                               std::floor(realtime_mode_command_) == realtime_mode_command_
                            ? static_cast<int>(realtime_mode_command_)
                            : -1;
-      if (realtime_mode_ == 2 || realtime_mode_ == 3) {
+      // Stop is an event marker and deliberately has no motion payload.  In
+      // particular, do not run the 2FG positive-force validation for the
+      // controller's activation/deactivation Stop, whose force interface is
+      // normally unset.  Malformed values that merely map to the internal
+      // sentinel -1 still go through validation because they are not the
+      // exact Stop value written by the controller.
+      const bool stop_command = std::isfinite(realtime_mode_command_) &&
+                                realtime_mode_command_ == -1.0;
+      if (is_2fg_ && !stop_command) {
         const double minimumForce = model_ == "2fg14" ? 40.0 : 30.0;
         const double maximumForce = model_ == "2fg14" ? 196.0 : 95.0;
         const bool validForce = std::isfinite(realtime_force_command_) &&
-            ((realtime_mode_ == 3 && realtime_force_command_ == 0.0) ||
-             (realtime_force_command_ >= minimumForce &&
-              realtime_force_command_ <= maximumForce));
+            realtime_force_command_ >= minimumForce &&
+            realtime_force_command_ <= maximumForce;
+        const bool positionMode = realtime_mode_ == 0 || realtime_mode_ == 2;
         const bool validVelocity = std::isfinite(realtime_task_velocity_command_) &&
             std::abs(realtime_task_velocity_command_) <= 0.3 &&
-            (realtime_mode_ == 3 || realtime_task_velocity_command_ >= 0.0);
-        const bool validPosition = realtime_mode_ == 3 ||
+            (!positionMode || realtime_task_velocity_command_ >= 0.0);
+        const bool validPosition = !positionMode ||
             (std::isfinite(realtime_task_position_command_) &&
              realtime_task_position_command_ >= task_min_m_ &&
              realtime_task_position_command_ <= task_max_m_);
         if (!is_2fg_ || !validForce || !validVelocity || !validPosition) {
+          RCLCPP_ERROR(
+              rclcpp::get_logger("onrobot_parallel_gripper_fake_system"),
+              "realtime command rejected: mode=%d position=%g velocity=%g "
+              "force=%g sequence=%g valid_force=%d valid_velocity=%d "
+              "valid_position=%d task_range=[%g,%g]",
+              realtime_mode_, realtime_task_position_command_,
+              realtime_task_velocity_command_, realtime_force_command_,
+              realtime_sequence_command_, validForce, validVelocity,
+              validPosition, task_min_m_, task_max_m_);
           realtime_sequence_command_ = nan();
           realtime_active_ = false;
           position_command_ = position_state_;
