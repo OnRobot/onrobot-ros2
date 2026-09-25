@@ -427,8 +427,15 @@
               <state_interface name="missed_deadlines" />
               <state_interface name="watchdog_stops" />
               <state_interface name="reconnects" />
-              <state_interface name="fault_recovery_command_sequence_ack" />
-              <state_interface name="fault_recovery_command_admission" />
+              <state_interface name="fault_recovery_command_sequence_ack"/>
+              <state_interface name="fault_recovery_command_admission"/>
+              <state_interface name="fault_recovery_protocol_version"/>
+              <state_interface name="fault_recovery_ready"/>
+              <state_interface name="fault_recovery_active_sequence"/>
+              <state_interface name="fault_recovery_result_sequence"/>
+              <state_interface name="fault_recovery_result"/>
+              <state_interface name="fault_recovery_result_code"/>
+              <state_interface name="fault_recovery_safety_required"/>
               <state_interface name="last_cycle_duration" />
               <state_interface name="minimum_task_aperture" />
               <state_interface name="maximum_task_aperture" />
@@ -492,6 +499,10 @@
               <state_interface name="diagnostic_angle_sensor_count" />
               <state_interface name="diagnostic_linear_error_count" />
               <state_interface name="diagnostic_realtime_external_width_mm" />
+              <state_interface name="diagnostic_conventional_power_valid" />
+              <state_interface name="diagnostic_conventional_velocity_calibration" />
+              <state_interface name="diagnostic_conventional_velocity_calibration_valid" />
+              <state_interface name="diagnostic_conventional_default_force_n" />
             </joint>
             <joint name="${prefix}finger_stroke">
               <state_interface name="position" />

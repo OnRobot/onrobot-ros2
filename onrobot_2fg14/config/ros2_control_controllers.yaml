@@ -28,6 +28,7 @@
     max_effort: 40.0
     conventional_speed_control: true
     conventional_speed_percent: 50
+    model: 2fg14
 
 /**/joint_state_broadcaster:
   ros__parameters:

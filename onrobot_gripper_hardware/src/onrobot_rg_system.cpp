@@ -1,4 +1,5 @@
 #include "onrobot_gripper_hardware/onrobot_rg_system.hpp"
+#include "onrobot_gripper_hardware/recovery_support.hpp"
 #include "onrobot_gripper_hardware/identity_state.hpp"
 
 #include <algorithm>
@@ -101,6 +102,12 @@ hardware_interface::CallbackReturn OnRobotRgSystem::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
   m_info = i_params.hardware_info;
+  recovery_state_.values[onrobot_gripper_msgs::recovery::SafetyRequired] = 1;
+  if (m_info.is_async) {
+    RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
+                 "Recovery protocol requires synchronous hardware read/update/write");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
   if (m_info.joints.empty() || m_info.joints.size() > 2) {
     RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
                  "RG requires grip_stroke and optional finger_joint");
@@ -158,6 +165,13 @@ hardware_interface::CallbackReturn OnRobotRgSystem::on_init(
 std::vector<hardware_interface::StateInterface>
 OnRobotRgSystem::export_state_interfaces() {
   std::vector<hardware_interface::StateInterface> interfaces;
+  for (const auto &joint : m_info.joints) {
+    if (joint.name != m_apertureJointName) continue;
+    for (std::size_t i = 0; i < onrobot_gripper_msgs::recovery::Count; ++i) {
+      const auto name = onrobot_gripper_msgs::recovery::names[i];
+      if (hasState(joint, name)) interfaces.emplace_back(joint.name, name, &recovery_state_.values[i]);
+    }
+  }
   interfaces.emplace_back(m_apertureJointName,
                           hardware_interface::HW_IF_POSITION, &m_positionState);
   const auto aperture = std::find_if(
@@ -329,6 +343,7 @@ OnRobotRgSystem::on_export_command_interfaces() {
 
 hardware_interface::CallbackReturn
 OnRobotRgSystem::on_configure(const rclcpp_lifecycle::State &) {
+  if (m_recoveryPending) return hardware_interface::CallbackReturn::ERROR;
   resetReadCache();
   if (m_session) {
     m_session->deactivate();
@@ -358,10 +373,8 @@ OnRobotRgSystem::on_configure(const rclcpp_lifecycle::State &) {
     m_lastSentPositionM = m_positionCommand;
     m_lastSentEffortN = m_defaultForceN;
     m_commandSent = true;
-    m_lastFaultRecoverySequence = 0;
     m_recoveryPending = false;
     m_conventionalRecoveryGate = false;
-    m_recoveryReconnectsAtRequest = 0;
     m_forceConventionalCommand = false;
     setNan(m_realtimeModeCommand);
     setNan(m_realtimeSequenceCommand);
@@ -380,11 +393,12 @@ OnRobotRgSystem::on_configure(const rclcpp_lifecycle::State &) {
 
 hardware_interface::CallbackReturn
 OnRobotRgSystem::on_activate(const rclcpp_lifecycle::State &) {
-  if (!m_session) {
+  if (!m_session || m_recoveryPending) {
     return hardware_interface::CallbackReturn::ERROR;
   }
   try {
     m_session->activate();
+    recovery_lifecycle_active_ = true;
     const auto activation_image = m_session->snapshot();
     m_cachedState = static_cast<const onrobot::ParallelGripperState &>(
         activation_image);
@@ -399,7 +413,6 @@ OnRobotRgSystem::on_activate(const rclcpp_lifecycle::State &) {
     m_stopPending = false;
     m_recoveryPending = false;
     m_conventionalRecoveryGate = false;
-    m_recoveryReconnectsAtRequest = 0;
     m_forceConventionalCommand = false;
     setNan(m_realtimeModeCommand);
     setNan(m_realtimeSequenceCommand);
@@ -417,9 +430,20 @@ OnRobotRgSystem::on_activate(const rclcpp_lifecycle::State &) {
 
 hardware_interface::CallbackReturn
 OnRobotRgSystem::on_deactivate(const rclcpp_lifecycle::State &) {
+  recovery_lifecycle_active_ = false;
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] = 0;
   if (m_session) {
     m_session->stop();
     m_session->deactivate();
+    // The joined worker has finalized its operation. Preserve success/failure
+    // that completed before shutdown instead of manufacturing an abort.
+    if (m_recoveryPending &&
+        (!m_session->trySnapshot(m_cachedState, m_cachedIdentity, m_cachedRecovery) ||
+         !finishRecovery(recovery_state_, m_recoverySdkSequence, m_cachedRecovery))) {
+      // Never discard ownership of an unresolved operation. A subsequent
+      // lifecycle attempt can observe the joined worker's retained outcome.
+      return hardware_interface::CallbackReturn::ERROR;
+    }
   }
   resetReadCache();
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -431,8 +455,39 @@ OnRobotRgSystem::read(const rclcpp::Time &, const rclcpp::Duration &) {
     return hardware_interface::return_type::ERROR;
   }
   const double previousFingerAngle = m_fingerAngleState;
-  (void)m_session->trySnapshot(m_cachedState, m_cachedIdentity);
+  (void)m_session->trySnapshot(m_cachedState, m_cachedIdentity, m_cachedRecovery);
   const bool applied = applySnapshot(m_cachedState);
+  if (m_recoveryPending) {
+    auto recovery_lock = command_stop_gate_.try_lock();
+    if (recovery_lock.owns_lock() &&
+        finishRecovery(recovery_state_, m_recoverySdkSequence,
+                       m_cachedRecovery)) {
+      // Exact terminal event is authoritative even if another fault followed
+      // it. Retire ownership before any stale Stop fence, but keep motion
+      // inhibited.
+      m_recoveryPending = false;
+      m_conventionalRecoveryGate = true;
+      m_retiredPositionCommand = m_positionCommand;
+      if (m_conventionalSequenceCommand > 0)
+        m_conventionalSequenceCommand = -m_conventionalSequenceCommand;
+      m_forceConventionalCommand = false;
+      setNan(m_realtimeSequenceCommand);
+      if (recovery_state_.values[onrobot_gripper_msgs::recovery::Outcome] ==
+          static_cast<double>(
+              onrobot_gripper_msgs::recovery::Result::Succeeded)) {
+        m_stopPending = false;
+        m_pendingStopSessionSequence = 0;
+        m_lastSentPositionM = m_positionState;
+        m_lastSentEffortN = m_defaultForceN;
+        m_commandSent = true;
+      }
+    }
+  }
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] =
+      recovery_lifecycle_active_ && !m_recoveryPending &&
+      m_cachedState.session_state == onrobot::SessionState::Faulted &&
+      m_cachedState.safety_status_valid && !m_cachedState.safety_1_pushed &&
+      !m_cachedState.safety_2_pushed && !m_cachedState.safety_dc_error;
   if (!applied) {
     if (m_cachedState.session_state == onrobot::SessionState::Faulted) {
       setNan(m_positionState);
@@ -474,7 +529,14 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     }
     return admission;
   };
-  if (!std::isnan(m_stopSequenceCommand)) {
+  uint64_t recoveryCandidate = 0;
+  // Only a fresh explicit recovery of a latched fault may supersede a Stop
+  // that cannot be acknowledged. Ordinary active-state Stop priority is intact.
+  const bool recoverySupersedesStop =
+      m_cachedState.session_state == onrobot::SessionState::Faulted &&
+      !m_recoveryPending && decodeCommandSequence(m_faultRecoverySequenceCommand, recoveryCandidate) &&
+      recoveryCandidate > m_lastFaultRecoverySequence;
+  if (!std::isnan(m_stopSequenceCommand) && !recoverySupersedesStop) {
     uint64_t sequence = 0;
     if (!decodeCommandSequence(m_stopSequenceCommand, sequence)) {
       RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
@@ -515,9 +577,18 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       setNan(m_faultRecoverySequenceCommand);
       return hardware_interface::return_type::ERROR;
     }
-    if (sequence != m_lastFaultRecoverySequence) {
-      if (m_safetyStatusValidState < 0.5 || m_safety1PushedState > 0.5 ||
-          m_safety2PushedState > 0.5 || m_safetyDcErrorState > 0.5) {
+    if (sequence > m_lastFaultRecoverySequence) {
+      if (m_recoveryPending) return hardware_interface::return_type::OK;
+      // Recheck the coherent SDK observation at consumption, not the cached
+      // ROS values from the preceding read. Contention retains the event.
+      onrobot::ParallelGripperState admission_state;
+      onrobot::ParallelGripperIdentity admission_identity;
+      onrobot::ParallelGripperRecoveryState admission_recovery;
+      if (!m_session->trySnapshot(admission_state, admission_identity, admission_recovery))
+        return hardware_interface::return_type::OK;
+      if (!recovery_lifecycle_active_ || !admission_state.safety_status_valid ||
+          admission_state.safety_1_pushed || admission_state.safety_2_pushed ||
+          admission_state.safety_dc_error) {
         m_faultRecoverySequenceAckState = static_cast<double>(sequence);
         m_faultRecoveryAdmissionState = 2.0;
         m_lastFaultRecoverySequence = sequence;
@@ -542,8 +613,10 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
           m_conventionalSequenceCommand = -m_conventionalSequenceCommand;
         }
         m_forceConventionalCommand = false;
-        m_recoveryReconnectsAtRequest = m_cachedState.reconnects;
+        m_recoverySdkSequence = sessionSequence;
+        recovery_state_.accept(sequence);
         m_recoveryPending = true;
+        setNan(m_stopSequenceCommand);
       } else {
         RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
                      "RG recovery sequence %llu rejected by SDK admission "
@@ -570,16 +643,6 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       return hardware_interface::return_type::OK;
     }
     m_stopPending = false;
-  }
-  if (m_recoveryPending && m_faultedState < 0.5 &&
-      m_reconnectsState >
-          static_cast<double>(m_recoveryReconnectsAtRequest) &&
-      m_taskPositionValidState > 0.5 && std::isfinite(m_positionState)) {
-    m_recoveryPending = false;
-    m_conventionalRecoveryGate = true;
-    m_lastSentPositionM = m_positionState;
-    m_lastSentEffortN = m_defaultForceN;
-    m_commandSent = true;
   }
   if (m_recoveryPending) {
     // Values observed while reconnecting are still pre-recovery intent. Keep
@@ -640,18 +703,21 @@ OnRobotRgSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
             return hardware_interface::return_type::OK;
           }
           if (admission != onrobot::CommandAdmission::Accepted) {
-            RCLCPP_ERROR(
-                rclcpp::get_logger("onrobot_rg_system"),
-                "Rejected RG realtime command (admission=%d); Stop queued",
-                static_cast<int>(admission));
-            if (tryQueueStop() != onrobot::CommandAdmission::Accepted) {
+            const auto stop = tryQueueStop();
+            m_realtimeRejection.report(rclcpp::get_logger("onrobot_rg_system"),
+                admission, stop, m_model, m_cachedState, m_cachedIdentity,
+                m_realtimeTaskPositionCommand, m_realtimeMechanismAngularVelocityCommand,
+                m_realtimeForceCommand);
+            if (stop != onrobot::CommandAdmission::Accepted) {
               return hardware_interface::return_type::OK;
             }
+          } else {
+            m_realtimeRejection.reset();
           }
         }
       } catch (const std::exception &i_error) {
         RCLCPP_ERROR(rclcpp::get_logger("onrobot_rg_system"),
-                     "Rejected RG realtime command; Stop queued: %s",
+                     "Rejected RG realtime command; Stop requested: %s",
                      i_error.what());
         if (tryQueueStop() != onrobot::CommandAdmission::Accepted) {
           return hardware_interface::return_type::OK;
@@ -953,6 +1019,7 @@ bool OnRobotRgSystem::applySnapshot(
 }
 
 void OnRobotRgSystem::resetReadCache() {
+  m_realtimeRejection.reset();
   m_cachedState = {};
   m_cachedIdentity = {};
   // A lifecycle reset is a real loss of the previously exported measurement.
@@ -973,7 +1040,6 @@ void OnRobotRgSystem::resetReadCache() {
   resetDerivativeHistory();
   m_recoveryPending = false;
   m_conventionalRecoveryGate = false;
-  m_recoveryReconnectsAtRequest = 0;
 }
 
 void OnRobotRgSystem::resetDerivativeHistory() {

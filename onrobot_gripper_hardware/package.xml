@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_gripper_hardware</name>
-<version>1.0.1</version>
+  <version>1.1.0</version>
   <description>Physical, deterministic fake, and Isaac Sim ros2_control hardware plugins for OnRobot grippers.</description>
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>
   <license>BSD-3-Clause</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>hardware_interface</depend>
-  <depend>onrobot_gripper_msgs</depend>
-  <depend version_gte="1.1.0">onrobot_tool_api</depend>
+  <depend version_gte="1.2.0">onrobot_gripper_msgs</depend>
+  <depend version_gte="1.2.0">onrobot_tool_api</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>

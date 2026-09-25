@@ -11,6 +11,9 @@ joint state and gripper actions cannot express the complete device state.
 - `RealtimeCommand` carries semantic position, velocity, and force commands.
 - `RealtimeState` reports the active realtime mode, independently valid task
   and mechanism observations, and session counters.
+- `RecoveryState` reports request ownership, backend admission and the retained
+  terminal result. See [state and recovery](../docs/state-diagnostics-and-recovery.md)
+  for request matching and validity rules.
 
 All linear quantities use metres and metres per second. Angular quantities use
 radians and radians per second. Consumers must inspect each validity flag; a

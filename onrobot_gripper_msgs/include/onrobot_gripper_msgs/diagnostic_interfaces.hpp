@@ -99,6 +99,10 @@ enum class DiagnosticInterface : std::size_t {
   FirmwareGitWord2,
   FirmwareGitWord3,
   FirmwareGitWord4,
+  ConventionalPowerValid,
+  ConventionalVelocityCalibration,
+  ConventionalVelocityCalibrationValid,
+  ConventionalDefaultForce,
   Count,
 };
 
@@ -196,7 +200,11 @@ inline constexpr std::array<const char *, kDiagnosticInterfaceCount>
         "diagnostic_firmware_git_word_1",
         "diagnostic_firmware_git_word_2",
         "diagnostic_firmware_git_word_3",
-        "diagnostic_firmware_git_word_4"};
+        "diagnostic_firmware_git_word_4",
+        "diagnostic_conventional_power_valid",
+        "diagnostic_conventional_velocity_calibration",
+        "diagnostic_conventional_velocity_calibration_valid",
+        "diagnostic_conventional_default_force_n"};
 
 constexpr std::size_t diagnosticIndex(DiagnosticInterface i_interface) noexcept {
   return static_cast<std::size_t>(i_interface);

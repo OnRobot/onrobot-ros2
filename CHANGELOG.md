@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+- Support Tool API 1.2.0.
+- Track explicit recovery admission and terminal results for real, fake and
+  Isaac backends. Publish `/recovery_controller/state` and retain unresolved
+  requests across controller lifecycle changes without replaying old motion.
+- Add support for SI task-aperture velocity in the standard conventional
+  grip action for 2FG7/2FG14.
+- Replace the conventional 2FG RViz percentage control with a per-goal m/s field.
+  Native percentage settings remain available for actions that omit velocity.
+- Fix realtime panel target replacement when a previous move is still active.
+
 ## 1.1.0
 
 - Add the `onrobot_ros2` metapackage.

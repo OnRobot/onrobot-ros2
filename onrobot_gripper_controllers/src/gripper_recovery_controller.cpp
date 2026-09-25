@@ -3,57 +3,23 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <exception>
-#include <optional>
-#include <utility>
-#include <vector>
-
 #include <pluginlib/class_list_macros.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 namespace onrobot_gripper_controllers {
 namespace {
-
-constexpr std::size_t kCoreStateInterfaceCount = 6;
-constexpr double kMaximumExactSequence = 9007199254740991.0;
-constexpr double kConnectionIdle = 3.0;
-constexpr double kConnectionFaulted = 6.0;
-constexpr double kAdmissionAccepted = 1.0;
-constexpr double kAdmissionRejected = 2.0;
-
-bool nextRecoverySequence(double last_acknowledged,
-                          uint64_t &sequence) noexcept {
-  // A monotonic-clock token survives controller plugin unload/reload, unlike
-  // a counter stored in the plugin's static storage. The hardware's retained
-  // acknowledgement provides a second guard if two requests share a clock tick.
-  const auto ticks = std::chrono::duration_cast<std::chrono::microseconds>(
-                         std::chrono::steady_clock::now().time_since_epoch())
-                         .count();
-  uint64_t candidate = ticks > 0 ? static_cast<uint64_t>(ticks) : 1U;
-  if (std::isfinite(last_acknowledged) && last_acknowledged > 0.0) {
-    if (last_acknowledged > kMaximumExactSequence ||
-        std::floor(last_acknowledged) != last_acknowledged) {
-      return false;
-    }
-    const auto last = static_cast<uint64_t>(last_acknowledged);
-    if (last >= static_cast<uint64_t>(kMaximumExactSequence)) {
-      return false;
-    }
-    candidate = std::max(candidate, last + 1U);
-  }
-  if (candidate == 0 ||
-      static_cast<double>(candidate) > kMaximumExactSequence) {
-    return false;
-  }
-  sequence = candidate;
-  return true;
+namespace protocol = onrobot_gripper_msgs::recovery;
+constexpr std::size_t kExtension = 6;
+constexpr std::size_t kCoreCount = kExtension + protocol::Count;
+constexpr std::size_t kFaulted = 0, kAck = 4, kAdmission = 5;
+constexpr std::size_t field(protocol::Field value) {
+  return kExtension + value;
 }
-
-void clearMatching(std::atomic<uint64_t> &value, uint64_t sequence) noexcept {
-  (void)value.compare_exchange_strong(sequence, 0, std::memory_order_acq_rel,
-                                      std::memory_order_acquire);
+bool flag(double value) { return value == 0 || value == 1; }
+bool validCode(double value) {
+  return (value >= 0 && value <= 9 && std::floor(value) == value) ||
+         value == 255;
 }
-
 } // namespace
 
 controller_interface::InterfaceConfiguration
@@ -71,12 +37,12 @@ GripperRecoveryController::state_interface_configuration() const {
       m_jointName + "/failed_cycles",
       m_jointName + "/fault_recovery_command_sequence_ack",
       m_jointName + "/fault_recovery_command_admission"};
+  for (const auto name : protocol::names)
+    names.push_back(m_jointName + "/" + name);
   if (m_safetyStatusSupported) {
-    names.insert(names.end(),
-                 {m_jointName + "/safety_status_valid",
-                  m_jointName + "/safety_1_pushed",
-                  m_jointName + "/safety_2_pushed",
-                  m_jointName + "/safety_dc_error"});
+    for (const auto name : {"safety_status_valid", "safety_1_pushed",
+                            "safety_2_pushed", "safety_dc_error"})
+      names.push_back(m_jointName + "/" + name);
   }
   return {controller_interface::interface_configuration_type::INDIVIDUAL,
           std::move(names)};
@@ -96,298 +62,226 @@ controller_interface::CallbackReturn GripperRecoveryController::on_init() {
 
 controller_interface::CallbackReturn
 GripperRecoveryController::on_configure(const rclcpp_lifecycle::State &) {
+  std::lock_guard<std::mutex> lock(m_requestMutex);
+  if (m_outstandingSequence != 0)
+    return controller_interface::CallbackReturn::FAILURE;
+  if (is_async() || (get_node()->has_parameter("is_async") &&
+                     get_node()->get_parameter("is_async").as_bool())) {
+    RCLCPP_ERROR(get_node()->get_logger(),
+                 "Recovery requires synchronous controller read/update/write");
+    return controller_interface::CallbackReturn::ERROR;
+  }
   m_jointName = get_node()->get_parameter("joint").as_string();
   m_safetyStatusSupported =
       get_node()->get_parameter("safety_status_supported").as_bool();
-  if (m_jointName.empty()) {
-    RCLCPP_ERROR(get_node()->get_logger(), "Recovery joint cannot be empty");
+  if (m_jointName.empty())
     return controller_interface::CallbackReturn::ERROR;
-  }
-  {
-    std::lock_guard<std::mutex> lock(m_requestMutex);
-    m_active.store(false, std::memory_order_release);
-  }
-  m_deviceStateSeen.store(false, std::memory_order_release);
-  m_faulted.store(false, std::memory_order_release);
-  m_connectionState.store(0.0, std::memory_order_release);
-  m_reconnects.store(0.0, std::memory_order_release);
-  m_failedCycles.store(0.0, std::memory_order_release);
-  m_safetySeen.store(false, std::memory_order_release);
-  m_safetyPushed.store(false, std::memory_order_release);
-  m_safetyDcError.store(false, std::memory_order_release);
-  m_pendingSequence.store(0, std::memory_order_release);
-  m_outstandingSequence.store(0, std::memory_order_release);
-  m_recoveryAckSequence.store(0.0, std::memory_order_release);
-  m_recoveryAdmission.store(0.0, std::memory_order_release);
-  m_backendAdmitted.store(false, std::memory_order_release);
-
+  m_active = m_deviceStateSeen = false;
+  m_observed.fill(0);
+  m_pendingSequence = 0;
+  m_statusPublisher =
+      std::make_unique<realtime_tools::RealtimePublisher<Status>>(
+          get_node()->create_publisher<Status>(
+              "~/state", rclcpp::QoS(1).reliable().transient_local()));
   m_recoveryService = get_node()->create_service<std_srvs::srv::Trigger>(
       "~/recover",
       [this](const std::shared_ptr<std_srvs::srv::Trigger::Request>,
              std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
         std::lock_guard<std::mutex> lock(m_requestMutex);
-        if (!m_active.load(std::memory_order_acquire)) {
+        const auto reject = [&](const char *why) {
           response->success = false;
-          response->message = "recovery rejected: controller is inactive";
-          return;
+          response->message = std::string("recovery rejected: ") + why;
+        };
+        if (!m_active)
+          return reject("controller is inactive");
+        if (!m_deviceStateSeen)
+          return reject(
+              "gripper state unavailable or recovery protocol invalid");
+        if (m_outstandingSequence)
+          return reject("another request is pending");
+        if (m_observed[field(protocol::SafetyRequired)] == 1) {
+          if (!m_safetyStatusSupported || m_observed[kCoreCount] != 1)
+            return reject("RG safety state unavailable");
+          if (m_observed[kCoreCount + 1] || m_observed[kCoreCount + 2])
+            return reject("release the RG safety switch first");
+          if (m_observed[kCoreCount + 3])
+            return reject("RG safety DC error requires a physical power cycle");
         }
-        if (!m_deviceStateSeen.load(std::memory_order_acquire)) {
-          response->success = false;
-          response->message = "recovery rejected: gripper state unavailable";
-          return;
-        }
-        if (!m_faulted.load(std::memory_order_acquire) ||
-            m_connectionState.load(std::memory_order_acquire) !=
-                kConnectionFaulted) {
-          response->success = false;
-          response->message = "recovery rejected: gripper is not faulted";
-          return;
-        }
-        if (m_safetyStatusSupported &&
-            !m_safetySeen.load(std::memory_order_acquire)) {
-          response->success = false;
-          response->message = "recovery rejected: RG safety state unavailable";
-          return;
-        }
-        if (m_safetyPushed.load(std::memory_order_acquire)) {
-          response->success = false;
-          response->message =
-              "recovery rejected: release the RG safety switch first";
-          return;
-        }
-        if (m_safetyDcError.load(std::memory_order_acquire)) {
-          response->success = false;
-          response->message =
-              "recovery rejected: RG safety DC error requires a physical power cycle";
-          return;
-        }
-        if (m_outstandingSequence.load(std::memory_order_acquire) != 0) {
-          response->success = false;
-          response->message = "recovery rejected: another request is pending";
-          return;
-        }
-
-        uint64_t sequence = 0;
-        if (!nextRecoverySequence(
-                m_recoveryAckSequence.load(std::memory_order_acquire),
-                sequence)) {
-          response->success = false;
-          response->message =
-              "recovery rejected: command sequence space is exhausted";
-          return;
-        }
-        m_reconnectsAtRequest.store(
-            m_reconnects.load(std::memory_order_acquire),
-            std::memory_order_release);
-        m_failedCyclesAtRequest.store(
-            m_failedCycles.load(std::memory_order_acquire),
-            std::memory_order_release);
-        m_backendAdmitted.store(false, std::memory_order_release);
-        m_outstandingSequence.store(sequence, std::memory_order_release);
-        m_pendingSequence.store(sequence, std::memory_order_release);
+        if (m_observed[kFaulted] != 1)
+          return reject("gripper is not faulted");
+        if (m_observed[field(protocol::Ready)] != 1)
+          return reject("backend is not ready for recovery");
+        const auto ticks =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now().time_since_epoch())
+                .count();
+        if (m_highWater >= protocol::maximum_sequence)
+          return reject("command sequence space is exhausted");
+        const uint64_t sequence =
+            std::max(m_highWater + 1,
+                     ticks > 0 ? static_cast<uint64_t>(ticks) : uint64_t{1});
+        if (sequence > protocol::maximum_sequence)
+          return reject("command sequence space is exhausted");
+        m_highWater = m_outstandingSequence = m_pendingSequence = sequence;
         response->success = true;
         response->message = "recovery queued (request " +
                             std::to_string(sequence) +
                             "); hardware admission and completion are pending";
-        RCLCPP_INFO(get_node()->get_logger(),
-                    "Queued recovery request %llu; awaiting hardware admission",
-                    static_cast<unsigned long long>(sequence));
       });
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn
 GripperRecoveryController::on_activate(const rclcpp_lifecycle::State &) {
-  m_deviceStateSeen.store(false, std::memory_order_release);
-  m_safetySeen.store(false, std::memory_order_release);
   std::lock_guard<std::mutex> lock(m_requestMutex);
-  m_active.store(true, std::memory_order_release);
+  m_deviceStateSeen = false;
+  const auto expected = kCoreCount + (m_safetyStatusSupported ? 4 : 0);
+  if (m_outstandingSequence == 0 &&
+      (state_interfaces_.size() != expected ||
+       state_interfaces_[field(protocol::Version)]
+               .get_optional<double>(1)
+               .value_or(0) != protocol::version)) {
+    RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "Recovery requires complete backend protocol version 2 interfaces");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+  m_active = true;
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn
 GripperRecoveryController::on_deactivate(const rclcpp_lifecycle::State &) {
   std::lock_guard<std::mutex> lock(m_requestMutex);
-  m_active.store(false, std::memory_order_release);
+  m_active = false;
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::CallbackReturn
 GripperRecoveryController::on_cleanup(const rclcpp_lifecycle::State &) {
   std::lock_guard<std::mutex> lock(m_requestMutex);
-  m_active.store(false, std::memory_order_release);
-  if (m_outstandingSequence.load(std::memory_order_acquire) != 0) {
+  m_active = false;
+  if (m_outstandingSequence) {
     RCLCPP_ERROR(get_node()->get_logger(),
-                 "Recovery cleanup refused while an accepted request is "
-                 "unresolved; reactivate the controller to observe or retry it");
-    // FAILURE leaves the lifecycle controller inactive so its retained event
-    // can be observed after reactivation. ERROR would move the controller into
-    // error processing and could strand the accepted request.
+                 "Recovery cleanup refused: request unresolved; reactivate to "
+                 "observe its result");
     return controller_interface::CallbackReturn::FAILURE;
   }
   m_recoveryService.reset();
+  m_statusPublisher.reset();
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
 controller_interface::return_type
-GripperRecoveryController::update(const rclcpp::Time &,
+GripperRecoveryController::update(const rclcpp::Time &time,
                                   const rclcpp::Duration &) {
-  const std::size_t expected_state_count =
-      kCoreStateInterfaceCount + (m_safetyStatusSupported ? 4U : 0U);
-  if (state_interfaces_.size() == expected_state_count) {
-    const auto read_finite = [this](std::size_t index,
-                                    double &value) -> bool {
-      const auto observed = state_interfaces_[index].get_optional<double>(1);
-      if (!observed || !std::isfinite(*observed)) {
-        return false;
-      }
-      value = *observed;
-      return true;
-    };
-    double faulted = 0.0;
-    double connection = 0.0;
-    double reconnects = 0.0;
-    double failed_cycles = 0.0;
-    double ack_sequence = 0.0;
-    double admission = 0.0;
-    const bool valid = read_finite(0, faulted) && read_finite(1, connection) &&
-                       read_finite(2, reconnects) &&
-                       read_finite(3, failed_cycles) &&
-                       read_finite(4, ack_sequence) &&
-                       read_finite(5, admission);
-    m_deviceStateSeen.store(valid, std::memory_order_release);
-    if (valid) {
-      m_faulted.store(faulted > 0.5, std::memory_order_release);
-      m_connectionState.store(connection, std::memory_order_release);
-      m_reconnects.store(reconnects, std::memory_order_release);
-      m_failedCycles.store(failed_cycles, std::memory_order_release);
-      m_recoveryAckSequence.store(ack_sequence, std::memory_order_release);
-      m_recoveryAdmission.store(admission, std::memory_order_release);
-    }
-    if (m_safetyStatusSupported) {
-      const auto read_flag = [this](std::size_t index) {
-        const auto value = state_interfaces_[index].get_optional<double>(1);
-        return value && std::isfinite(*value) ? std::optional<double>(*value)
-                                               : std::nullopt;
-      };
-      const auto valid_state = read_flag(6);
-      const auto safety_one = read_flag(7);
-      const auto safety_two = read_flag(8);
-      const auto safety_dc_error = read_flag(9);
-      const bool safety_valid = valid_state && *valid_state > 0.5 &&
-                                safety_one && safety_two && safety_dc_error;
-      m_safetySeen.store(safety_valid, std::memory_order_release);
-      m_safetyPushed.store(
-          safety_valid && (*safety_one > 0.5 || *safety_two > 0.5),
-          std::memory_order_release);
-      m_safetyDcError.store(safety_valid && *safety_dc_error > 0.5,
-                            std::memory_order_release);
-    }
-  } else {
-    m_deviceStateSeen.store(false, std::memory_order_release);
-    if (m_safetyStatusSupported) {
-      m_safetySeen.store(false, std::memory_order_release);
-    }
-  }
-
-  const uint64_t outstanding =
-      m_outstandingSequence.load(std::memory_order_acquire);
-  if (outstanding != 0 && m_deviceStateSeen.load(std::memory_order_acquire)) {
-    const double ack = m_recoveryAckSequence.load(std::memory_order_acquire);
-    const double admission = m_recoveryAdmission.load(std::memory_order_acquire);
-    if (ack == static_cast<double>(outstanding)) {
-      if (admission == kAdmissionRejected) {
-        uint64_t expected = outstanding;
-        if (m_outstandingSequence.compare_exchange_strong(
-                expected, 0, std::memory_order_acq_rel,
-                std::memory_order_acquire)) {
-          clearMatching(m_pendingSequence, outstanding);
-          m_backendAdmitted.store(false, std::memory_order_release);
-          RCLCPP_ERROR(get_node()->get_logger(),
-                       "Recovery request %llu was rejected by the hardware "
-                       "backend (admission status %.0f)",
-                       static_cast<unsigned long long>(outstanding), admission);
-        }
-      } else if (admission == kAdmissionAccepted) {
-        if (!m_backendAdmitted.exchange(true, std::memory_order_acq_rel)) {
-          RCLCPP_INFO(get_node()->get_logger(),
-                      "Recovery request %llu admitted by the hardware "
-                      "backend; awaiting device recovery",
-                      static_cast<unsigned long long>(outstanding));
-        }
-      }
-    }
-    if (m_backendAdmitted.load(std::memory_order_acquire)) {
-      const double connection =
-          m_connectionState.load(std::memory_order_acquire);
-      const bool completed =
-          !m_faulted.load(std::memory_order_acquire) &&
-          connection == kConnectionIdle &&
-          m_reconnects.load(std::memory_order_acquire) >
-              m_reconnectsAtRequest.load(std::memory_order_acquire);
-      const bool failed =
-          m_faulted.load(std::memory_order_acquire) &&
-          connection == kConnectionFaulted &&
-          m_failedCycles.load(std::memory_order_acquire) >
-              m_failedCyclesAtRequest.load(std::memory_order_acquire);
-      if (completed || failed) {
-        uint64_t expected = outstanding;
-        if (m_outstandingSequence.compare_exchange_strong(
-                expected, 0, std::memory_order_acq_rel,
-                std::memory_order_acquire)) {
-          m_backendAdmitted.store(false, std::memory_order_release);
-          if (completed) {
-            RCLCPP_INFO(get_node()->get_logger(),
-                        "Recovery request %llu completed; device is active "
-                        "and idle",
-                        static_cast<unsigned long long>(outstanding));
-          } else {
-            RCLCPP_ERROR(get_node()->get_logger(),
-                         "Recovery request %llu failed; device remains faulted",
-                         static_cast<unsigned long long>(outstanding));
-          }
-        }
-      }
-    }
-  }
-
-  const uint64_t sequence =
-      m_pendingSequence.load(std::memory_order_acquire);
-  if (sequence == 0 || !m_active.load(std::memory_order_acquire)) {
+  std::unique_lock<std::mutex> lock(m_requestMutex, std::try_to_lock);
+  if (!lock.owns_lock())
     return controller_interface::return_type::OK;
-  }
-  if (m_safetyStatusSupported) {
-    if (!m_safetySeen.load(std::memory_order_acquire)) {
-      return controller_interface::return_type::OK;
-    }
-    if (m_safetyPushed.load(std::memory_order_acquire) ||
-        m_safetyDcError.load(std::memory_order_acquire)) {
-      uint64_t expected_pending = sequence;
-      if (m_pendingSequence.compare_exchange_strong(
-              expected_pending, 0, std::memory_order_acq_rel,
-              std::memory_order_acquire)) {
-        clearMatching(m_outstandingSequence, sequence);
-        m_backendAdmitted.store(false, std::memory_order_release);
-        RCLCPP_ERROR(get_node()->get_logger(),
-                     "Queued recovery request %llu cancelled because RG "
-                     "safety state is no longer clear",
-                     static_cast<unsigned long long>(sequence));
+  const auto expected = kCoreCount + (m_safetyStatusSupported ? 4 : 0);
+  auto next = m_observed;
+  bool valid = state_interfaces_.size() == expected;
+  if (valid)
+    for (std::size_t i = 0; i < expected; ++i) {
+      const auto value = state_interfaces_[i].get_optional<double>(1);
+      if (!value || !std::isfinite(*value)) {
+        valid = false;
+        break;
       }
-      return controller_interface::return_type::OK;
+      next[i] = *value;
+    }
+  if (valid) {
+    const double outcome = next[field(protocol::Outcome)],
+                 code = next[field(protocol::Reason)];
+    valid = next[field(protocol::Version)] == protocol::version &&
+            flag(next[kFaulted]) && flag(next[field(protocol::Ready)]) &&
+            (next[field(protocol::Ready)] == 0 || next[kFaulted] == 1) &&
+            flag(next[field(protocol::SafetyRequired)]) &&
+            protocol::validSequence(next[kAck]) &&
+            protocol::validSequence(next[field(protocol::Active)]) &&
+            protocol::validSequence(next[field(protocol::ResultSequence)]) &&
+            (next[kAdmission] == 0 || next[kAdmission] == 1 ||
+             next[kAdmission] == 2) &&
+            ((next[kAdmission] == 0) == (next[kAck] == 0)) && validCode(code) &&
+            ((outcome == 0 && next[field(protocol::ResultSequence)] == 0 &&
+              code == 0) ||
+             (next[field(protocol::ResultSequence)] > 0 &&
+              ((outcome == 1 && code == 0) || (outcome == 2 && code != 0) ||
+               (outcome == 3 &&
+                code == static_cast<double>(protocol::Code::Cancelled))))) &&
+            !(next[field(protocol::Active)] > 0 &&
+              (next[field(protocol::Ready)] != 0 || next[kAdmission] != 1 ||
+               next[kAck] != next[field(protocol::Active)] ||
+               next[field(protocol::Active)] ==
+                   next[field(protocol::ResultSequence)]));
+    if (valid && next[field(protocol::SafetyRequired)] == 1) {
+      valid = m_safetyStatusSupported;
+      if (valid)
+        for (std::size_t i = kCoreCount; i < expected; ++i)
+          valid = valid && flag(next[i]);
     }
   }
-  if (command_interfaces_.size() != 1) {
-    // Keep accepted intent until the command interface can accept the handoff.
-    return controller_interface::return_type::OK;
+  m_deviceStateSeen = valid;
+  if (valid) {
+    m_observed = next;
+    for (const auto i :
+         {kAck, field(protocol::Active), field(protocol::ResultSequence)})
+      m_highWater = std::max(m_highWater, static_cast<uint64_t>(next[i]));
+    // A replacement observer adopts ownership; it never reissues the operation.
+    if (m_outstandingSequence == 0 && next[field(protocol::Active)] > 0)
+      m_outstandingSequence =
+          static_cast<uint64_t>(next[field(protocol::Active)]);
+    if (m_outstandingSequence &&
+        ((next[kAck] == static_cast<double>(m_outstandingSequence) &&
+          next[kAdmission] == 2) ||
+         (next[field(protocol::ResultSequence)] ==
+              static_cast<double>(m_outstandingSequence) &&
+          next[field(protocol::Outcome)] != 0))) {
+      if (m_pendingSequence == m_outstandingSequence)
+        m_pendingSequence = 0;
+      m_outstandingSequence = 0;
+    }
   }
-  if (!command_interfaces_.front().set_value(static_cast<double>(sequence))) {
-    return controller_interface::return_type::OK;
+  if (m_active && valid && m_pendingSequence) {
+    // Cancellation is local only before export; after export only the backend
+    // can authoritatively reject or terminate the exact request.
+    const bool unsafe = next[field(protocol::SafetyRequired)] == 1 &&
+                        (next[kCoreCount] != 1 || next[kCoreCount + 1] ||
+                         next[kCoreCount + 2] || next[kCoreCount + 3]);
+    if (unsafe) {
+      RCLCPP_WARN(
+          get_node()->get_logger(),
+          "Recovery request %llu cancelled before export: safety state changed",
+          static_cast<unsigned long long>(m_pendingSequence));
+      m_cancelledSequence = m_pendingSequence;
+      m_pendingSequence = m_outstandingSequence = 0;
+    } else if (command_interfaces_.size() == 1 &&
+               command_interfaces_[0].set_value(
+                   static_cast<double>(m_pendingSequence))) {
+      m_pendingSequence = 0;
+    }
   }
-  clearMatching(m_pendingSequence, sequence);
+  if (m_statusPublisher && m_statusPublisher->trylock()) {
+    auto &message = m_statusPublisher->msg_;
+    message.header.stamp = time;
+    message.observation_valid = valid;
+    message.ready = m_active && valid && !m_outstandingSequence &&
+                    m_observed[field(protocol::Ready)] == 1;
+    message.request_sequence = m_outstandingSequence;
+    message.cancelled_sequence = m_cancelledSequence;
+    message.admission_sequence = static_cast<uint64_t>(m_observed[kAck]);
+    message.admission = static_cast<uint8_t>(m_observed[kAdmission]);
+    message.active_sequence =
+        static_cast<uint64_t>(m_observed[field(protocol::Active)]);
+    message.result_sequence =
+        static_cast<uint64_t>(m_observed[field(protocol::ResultSequence)]);
+    message.result = static_cast<uint8_t>(m_observed[field(protocol::Outcome)]);
+    message.result_code =
+        static_cast<uint8_t>(m_observed[field(protocol::Reason)]);
+    m_statusPublisher->unlockAndPublish();
+  }
   return controller_interface::return_type::OK;
 }
-
 } // namespace onrobot_gripper_controllers
-
 PLUGINLIB_EXPORT_CLASS(onrobot_gripper_controllers::GripperRecoveryController,
                        controller_interface::ControllerInterface)

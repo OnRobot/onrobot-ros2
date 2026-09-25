@@ -28,6 +28,15 @@ loop exchanges bounded command and state images and does not perform Modbus
 I/O. Connection faults remain observable through the semantic state and
 diagnostics broadcasters until recovery succeeds.
 
+Recovery controllers use protocol version 2 state interfaces declared in the
+supplied Xacros. Update hardware, controllers and robot descriptions together.
+Custom descriptions must also export the fields named in
+`onrobot_gripper_msgs/fault_recovery_protocol.hpp`, alongside the existing
+recovery command, acknowledgement and admission interfaces. Physical RG
+backends require valid, clear safety feedback; kinematic simulation does not
+invent physical switch state. Use synchronous hardware/controller updates.
+See [state and recovery](../docs/state-diagnostics-and-recovery.md) for usage.
+
 Each physical read makes one nonblocking state handoff. If the session is
 publishing a sample at that instant, the adapter retains the last coherent
 measurement and continues to report its increasing `sample_age`; validity and

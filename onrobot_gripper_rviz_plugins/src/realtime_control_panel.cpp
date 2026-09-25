@@ -723,15 +723,9 @@ void RealtimeControlPanel::beginPositionCommand(double i_targetPositionM,
                   : "Choose a valid positive closing force before sending a 2FG realtime position command");
     return;
   }
-  const bool taskValid =
-      m_sharedState->task_position_valid.load(std::memory_order_acquire);
-  const double current =
-      m_sharedState->task_position.load(std::memory_order_relaxed);
-  if (taskValid && std::isfinite(current) &&
-      std::abs(current - target) <= kEndpointToleranceM) {
-    setStatus(QString("Already at %1 m").arg(target, 0, 'f', 4));
-    return;
-  }
+  // A measurement can still describe the starting point of an earlier move.
+  // Every click replaces that intent, even when the new target matches the
+  // last feedback. The normal target tracker handles completion afterwards.
   m_dragging = false;
   m_joystickSlider->setValue(0);
   m_directionGuard.reset();

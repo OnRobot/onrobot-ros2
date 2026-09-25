@@ -72,6 +72,11 @@ hardware_interface::CallbackReturn OnRobotIsaacSystem::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
   info_ = params.hardware_info;
+  if (info_.is_async) {
+    RCLCPP_ERROR(rclcpp::get_logger("onrobot_isaac_system"),
+                 "Recovery protocol requires synchronous hardware read/update/write");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
   try {
     const auto model = stringParameter(info_, "model", "");
     if (model != "2fg7" && model != "2fg14" && model != "rg2" &&
@@ -152,6 +157,10 @@ hardware_interface::CallbackReturn OnRobotIsaacSystem::on_init(
 std::vector<hardware_interface::StateInterface>
 OnRobotIsaacSystem::export_state_interfaces() {
   std::vector<hardware_interface::StateInterface> result;
+  for (std::size_t i = 0; i < onrobot_gripper_msgs::recovery::Count; ++i) {
+    const auto name = onrobot_gripper_msgs::recovery::names[i];
+    if (hasState(info_.joints.front(), name)) result.emplace_back(task_joint_, name, &recovery_state_.values[i]);
+  }
   result.emplace_back(task_joint_, hardware_interface::HW_IF_POSITION,
                       &position_state_);
   result.emplace_back(task_joint_, hardware_interface::HW_IF_VELOCITY,
@@ -348,6 +357,7 @@ OnRobotIsaacSystem::on_activate(const rclcpp_lifecycle::State &) {
 
 hardware_interface::CallbackReturn
 OnRobotIsaacSystem::on_deactivate(const rclcpp_lifecycle::State &) {
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] = 0;
   if (command_publisher_) {
     if (feedback_ready_ && currentFeedbackAvailable()) {
       publishPosition(position_state_);
@@ -510,12 +520,12 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     return hardware_interface::return_type::OK;
   }
 
-  if (std::isfinite(fault_recovery_sequence_command_)) {
+  if (!std::isnan(fault_recovery_sequence_command_)) {
     uint64_t sequence = 0;
     const bool valid_sequence =
         decodeCommandSequence(fault_recovery_sequence_command_, sequence);
     const bool fresh_sequence =
-        valid_sequence && sequence != last_fault_recovery_sequence_;
+        valid_sequence && sequence > last_fault_recovery_sequence_;
     fault_recovery_sequence_command_ = nan();
     if (!valid_sequence) {
       return hardware_interface::return_type::ERROR;
@@ -524,9 +534,11 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       last_fault_recovery_sequence_ = sequence;
       fault_recovery_sequence_ack_state_ = static_cast<double>(sequence);
     }
-    if (fresh_sequence && task_position_valid_state_ > 0.0 &&
+    if (fresh_sequence && faulted_state_ > 0.5 &&
+        task_position_valid_state_ > 0.0 && std::isfinite(position_state_) &&
         currentFeedbackAvailable()) {
       fault_recovery_admission_state_ = 1.0;
+      recovery_state_.accept(sequence);
       faulted_state_ = 0.0;
       fault_code_state_ = 0.0;
       feedback_ready_ = true;
@@ -539,6 +551,8 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       realtime_task_velocity_command_ = nan();
       realtime_force_command_ = nan();
       realtime_sequence_command_ = nan();
+      conventional_sequence_command_ = nan();
+      force_conventional_command_ = false;
       feedback_loss_stop_pending_ = false;
       feedback_loss_stop_sent_ = false;
       conventional_recovery_gate_ = std::isfinite(retired_position_command_);
@@ -547,11 +561,13 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
       publishPosition(position_state_);
       active_mode_state_ = 0.0;
       busy_state_ = 0.0;
+      recovery_state_.finish(onrobot_gripper_msgs::recovery::Result::Succeeded);
       return hardware_interface::return_type::OK;
     }
     if (fresh_sequence) {
       fault_recovery_admission_state_ = 2.0;
     }
+    return hardware_interface::return_type::OK;
   }
 
   if (!feedback_ready_) {
@@ -866,6 +882,9 @@ void OnRobotIsaacSystem::updateDerivedState(double physical_position_m,
 }
 
 void OnRobotIsaacSystem::updateDiagnosticStates() {
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] =
+      active_ && faulted_state_ > 0.5 && task_position_valid_state_ > 0.5 &&
+      std::isfinite(position_state_) && currentFeedbackAvailable();
   diagnostic_states_.fill(nan());
   setDiagnostic(diagnostic_states_, DiagnosticInterface::StatusValid,
                 task_position_valid_state_ > 0.5 ? 1.0 : 0.0);

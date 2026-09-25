@@ -15,9 +15,7 @@
 #include <control_msgs/msg/float64_values.hpp>
 #include <controller_manager_msgs/srv/list_controllers.hpp>
 #include <onrobot_gripper_msgs/msg/gripper_state.hpp>
-#include <rcl_interfaces/msg/parameter_event.hpp>
 #include <rcl_interfaces/srv/get_parameters.hpp>
-#include <rcl_interfaces/srv/set_parameters_atomically.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 
@@ -27,7 +25,6 @@
 
 class QLabel;
 class QDoubleSpinBox;
-class QSpinBox;
 class QPushButton;
 class QGroupBox;
 class QTimer;
@@ -59,9 +56,7 @@ private:
   using GripperAction = control_msgs::action::ParallelGripperCommand;
   using GoalHandle = rclcpp_action::ClientGoalHandle<GripperAction>;
   using GetParameters = rcl_interfaces::srv::GetParameters;
-  using SetParametersAtomically = rcl_interfaces::srv::SetParametersAtomically;
   using GetParametersClient = rclcpp::Client<GetParameters>;
-  using SetParametersClient = rclcpp::Client<SetParametersAtomically>;
 
   // ROS callbacks execute on RViz's executor thread while the panel widgets
   // belong to the Qt GUI thread.  Keeping the latest sample in this small
@@ -83,23 +78,13 @@ private:
     std::atomic<bool> safety_2_pushed{false};
     std::atomic<bool> safety_2_triggered{false};
     std::atomic<bool> safety_dc_error{false};
-    std::atomic<bool> speed_capability_checked{false};
     std::atomic<bool> speed_control_available{false};
-    std::atomic<bool> speed_current_valid{false};
     std::atomic<bool> speed_read_in_flight{false};
-    std::atomic<bool> speed_write_pending{false};
-    std::atomic<bool> speed_set_acknowledged{false};
-    std::atomic<bool> speed_input_dirty{false};
-    std::atomic<int> speed_percent{50};
-    std::atomic<int> speed_expected_percent{-1};
-    std::atomic<int> speed_status_code{0};
+    std::atomic<int> speed_model{0};
     std::atomic<std::uint64_t> speed_request_generation{0};
-    std::atomic<std::uint64_t> speed_event_generation{0};
     std::atomic<std::int64_t> speed_last_read_ns{0};
     std::atomic<std::int64_t> speed_read_started_ns{0};
-    std::atomic<std::int64_t> speed_write_started_ns{0};
-    mutable std::mutex speed_status_mutex;
-    std::string speed_status_message{"Checking controller speed support"};
+    std::atomic<std::int64_t> speed_confirmed_ns{0};
     // 0 idle, 1 accepted, 2 feedback/moving, 3 succeeded, 4 canceled,
     // 5 aborted, 6 rejected.  ROS callbacks write this; Qt reads it.
     std::atomic<int> action_status{0};
@@ -111,25 +96,13 @@ private:
   void setCommandWidgetsEnabled(bool i_enabled);
   void setStatus(const QString &i_text);
   void requestSpeedParameters();
-  void applySpeedSetting();
-  void setSpeedStatus(int i_code, const std::string &i_message);
-  static void setSpeedStatus(const std::shared_ptr<SharedState> &i_state,
-                             int i_code, const std::string &i_message);
   void updateSpeedPanel(bool i_command_ready);
-  static void requestSpeedReadback(
-      const GetParametersClient::SharedPtr &i_client,
-      const std::shared_ptr<SharedState> &i_state,
-      std::uint64_t i_generation, std::uint64_t i_event_generation,
-      int i_expected_percent);
 
   rclcpp::Node::SharedPtr m_node;
   rclcpp_action::Client<GripperAction>::SharedPtr m_actionClient;
   rclcpp::Client<controller_manager_msgs::srv::ListControllers>::SharedPtr
       m_controllerListClient;
   GetParametersClient::SharedPtr m_speedGetParametersClient;
-  SetParametersClient::SharedPtr m_speedSetParametersClient;
-  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr
-      m_parameterEventSubscription;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr
       m_jointStateSubscription;
   rclcpp::Subscription<control_msgs::msg::Float64Values>::SharedPtr
@@ -172,9 +145,7 @@ private:
   QLabel *m_safetyLabel{nullptr};
   QLabel *m_safetyCaption{nullptr};
   QGroupBox *m_speedGroup{nullptr};
-  QSpinBox *m_speedSpinBox{nullptr};
-  QPushButton *m_speedApplyButton{nullptr};
-  QLabel *m_speedCurrentLabel{nullptr};
+  QDoubleSpinBox *m_speedSpinBox{nullptr};
   QLabel *m_speedStatusLabel{nullptr};
 };
 

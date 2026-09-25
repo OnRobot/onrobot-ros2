@@ -809,6 +809,13 @@
               <state_interface name="watchdog_stops"/><state_interface name="reconnects"/><state_interface name="last_cycle_duration"/>
               <state_interface name="fault_recovery_command_sequence_ack"/>
               <state_interface name="fault_recovery_command_admission"/>
+              <state_interface name="fault_recovery_protocol_version"/>
+              <state_interface name="fault_recovery_ready"/>
+              <state_interface name="fault_recovery_active_sequence"/>
+              <state_interface name="fault_recovery_result_sequence"/>
+              <state_interface name="fault_recovery_result"/>
+              <state_interface name="fault_recovery_result_code"/>
+              <state_interface name="fault_recovery_safety_required"/>
               <state_interface name="minimum_task_aperture"/><state_interface name="maximum_task_aperture"/>
               <state_interface name="diagnostic_status_valid"/>
               <state_interface name="diagnostic_identity_valid" />

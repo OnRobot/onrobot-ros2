@@ -34,23 +34,15 @@ own the gripper.
 
 ## Conventional 2FG speed panel
 
-On controllers that advertise runtime conventional-speed support, the
-Conventional Control RViz panel shows a **Speed (%)** field and **Apply**
-button. Select an integer from 1–100, then Apply. The panel displays the
-controller's current value and confirms the change after reading it back.
-Changing the setting affects future conventional goals only; it does not
-change a motion already in progress. The controller rejects changes while a
-goal or Stop handoff is active, and the panel temporarily disables motion
-controls while an update is being confirmed. Other panels connected to the
-same controller reflect the new value automatically.
+The Conventional Control panel shows **Max aperture speed** in m/s for
+supported 2FG7/2FG14 backends. Set it before clicking Open, Close or Send target;
+it is sent with that action and does not alter an ongoing motion. Each panel
+keeps its own selection. The field is hidden for unsupported controllers.
+See the [controller contract](../onrobot_gripper_controllers/README.md) for
+the optional velocity field and an action example.
 
-This setting is available only when the controller/backend advertises support
-(the standard real and fake 2FG configurations). It is hidden for RG/3FG and
-unsupported backends. The launch argument `conventional_speed_percent`
-initializes the native speed percentage, defaults to 50%, and accepts 1–100;
-the panel can change it at runtime. This percentage is sent as the device's
-native speed setting, not converted from the standard action's optional
-velocity field and not a guaranteed SI velocity.
+The native `conventional_speed_percent` launch argument remains available for
+actions that omit velocity; the panel's explicit m/s selection overrides it.
 
 2FG closing feedback is negative; positive force targets still request closing.
 Read [force provenance and validity](../onrobot_gripper_msgs/README.md#diagnostics)
