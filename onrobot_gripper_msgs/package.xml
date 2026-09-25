@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_gripper_msgs</name>
-  <version>1.0.0</version>
+  <version>1.2.0</version>
   <description>Semantic state and realtime-control ROS 2 interfaces for OnRobot grippers.</description>
 
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>

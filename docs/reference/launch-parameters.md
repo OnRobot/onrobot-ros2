@@ -50,7 +50,8 @@ ros2 launch onrobot_gripper_demos showcase.launch.py --show-args
 ```
 
 For controllers that advertise conventional speed support, the RViz
-Conventional Control panel can update `conventional_speed_percent` at runtime.
+Conventional Control panel sends a per-goal m/s speed instead. The native
+`conventional_speed_percent` parameter remains available for goals that omit velocity.
 The launch argument supplies the initial value; runtime changes apply to future
 goals only. See the [speed panel guide](../realtime-control.md#conventional-2fg-speed-panel).
 

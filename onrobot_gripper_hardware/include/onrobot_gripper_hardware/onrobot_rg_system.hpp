@@ -1,4 +1,6 @@
 #pragma once
+#include "onrobot_gripper_hardware/realtime_rejection.hpp"
+#include <onrobot_gripper_msgs/fault_recovery_protocol.hpp>
 
 #include "onrobot_gripper_hardware/command_stop_gate.hpp"
 
@@ -48,6 +50,10 @@ public:
                                         const rclcpp::Duration &) override;
 
 private:
+  onrobot_gripper_msgs::recovery::State recovery_state_;
+  bool recovery_lifecycle_active_{false};
+  onrobot::ParallelGripperRecoveryState m_cachedRecovery{};
+  uint64_t m_recoverySdkSequence{0};
   CommandStopGate command_stop_gate_;
   bool parseParameters();
   bool hasCommand(const hardware_interface::ComponentInfo &i_joint,
@@ -137,9 +143,9 @@ private:
   std::chrono::steady_clock::time_point m_lastReceivedAt{};
   uint64_t m_lastSampleSequence{0};
   uint64_t m_lastRealtimeSequence{0};
+  RealtimeRejection m_realtimeRejection;
   uint64_t m_lastFaultRecoverySequence{0};
   uint64_t m_pendingStopSessionSequence{0};
-  uint64_t m_recoveryReconnectsAtRequest{0};
   double m_retiredPositionCommand{0.0};
   bool m_recoveryPending{false};
   bool m_conventionalRecoveryGate{false};

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_gripper_controllers</name>
-<version>1.0.1</version>
+<version>1.2.0</version>
   <description>Realtime motion, semantic state, and recovery ros2_control controllers for OnRobot grippers.</description>
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>
   <license>BSD-3-Clause</license>
@@ -9,7 +9,8 @@
   <depend>controller_interface</depend>
   <depend>diagnostic_msgs</depend>
   <depend>hardware_interface</depend>
-  <depend>onrobot_gripper_msgs</depend>
+  <depend version_gte="1.2.0">onrobot_gripper_msgs</depend>
+  <depend version_gte="1.2.0">onrobot_tool_api</depend>
   <depend>parallel_gripper_controller</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>

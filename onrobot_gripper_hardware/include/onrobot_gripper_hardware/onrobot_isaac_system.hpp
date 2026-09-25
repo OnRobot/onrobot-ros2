@@ -1,4 +1,5 @@
 #pragma once
+#include <onrobot_gripper_msgs/fault_recovery_protocol.hpp>
 
 #include "onrobot_gripper_hardware/command_stop_gate.hpp"
 
@@ -53,6 +54,7 @@ public:
                                         const rclcpp::Duration &) override;
 
 private:
+  onrobot_gripper_msgs::recovery::State recovery_state_;
   CommandStopGate command_stop_gate_;
   bool hasState(const hardware_interface::ComponentInfo &joint,
                 const std::string &name) const;
@@ -107,7 +109,7 @@ private:
   bool conventional_recovery_gate_{false};
   double retired_position_command_{std::numeric_limits<double>::quiet_NaN()};
   bool rg_model_{false};
-  double realtime_force_min_{30.0};
+  double realtime_force_min_{0.0};
   double realtime_force_max_{95.0};
   std::unique_ptr<RgVisualKinematics> rg_kinematics_;
 

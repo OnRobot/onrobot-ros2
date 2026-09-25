@@ -11,6 +11,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/GripperState.msg"
   "msg/RealtimeCommand.msg"
   "msg/RealtimeState.msg"
+  "msg/RecoveryState.msg"
   DEPENDENCIES builtin_interfaces std_msgs
 )
 

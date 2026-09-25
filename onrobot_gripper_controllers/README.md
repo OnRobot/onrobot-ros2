@@ -55,10 +55,13 @@ the interrupted target is not resumed automatically.
 Device communication, watchdog handling, and reconnect policy remain in the
 hardware session rather than in these controllers.
 
-For 2FG7/2FG14, `FORCE_POSITION` uses a positive closing target and a
-nonnegative approach-speed limit; `FORCE_VELOCITY` uses a positive closing
+For 2FG7/2FG14, `FORCE_POSITION` uses a closing-force target and a
+nonnegative approach-speed limit; `FORCE_VELOCITY` uses a closing-force
 target and a signed approach velocity. The session checks the firmware and
-model force range before admission. Follow the [realtime panel instructions](../onrobot_gripper_rviz_plugins/README.md)
+model force range before admission. On 2FG7 firmware 1.0.34 or newer,
+headless clients may also request zero or subminimum force: opening ignores
+force, while closing uses at least 30 N. Zero force is not Stop; negative
+force targets are rejected. Follow the [realtime panel instructions](../onrobot_gripper_rviz_plugins/README.md)
 for grip, release and Stop; the typed state advertises backend availability.
 
 The diagnostic status uses the standard `diagnostic_msgs/msg/DiagnosticArray`
@@ -70,10 +73,30 @@ The RG force key is command-derived, not measured contact force, and the 3FG
 force key is a percentage.
 
 The conventional action accepts task-aperture position and optional effort.
-It rejects a nonempty `command.velocity` field. Conventional 2FG motion uses
-the configured device speed percentage, while RG realtime velocity is an
-angular mechanism coordinate; neither is a per-goal SI aperture-velocity
-limit. Use `OnRobotRealtimeController` when velocity control is required.
+For 2FG7/2FG14, `command.velocity` is an optional maximum aperture speed, in
+m/s. The controller selects the native speed using an estimated full-travel
+peak at the requested force.
+
+Supply one finite positive value, or leave the array empty to use
+`conventional_speed_percent`. Bounds above the modeled peak select 100%;
+bounds below the modeled minimum select 1%, with a warning that the speed may
+exceed the request. Conversion uses the faster of opening and closing.
+It uses positive `command.effort`, `max_effort` if
+omitted, or `default_force_n` for explicit zero effort. Fresh live force and
+motor context is required; a context change before dispatch aborts the goal.
+RG/3FG and controllers without conventional-speed support reject nonempty
+velocity arrays.
+
+For example, the standard action message uses arrays, including for the
+optional velocity field:
+
+```bash
+ros2 action send_goal /gripper_controller/gripper_cmd \
+  control_msgs/action/ParallelGripperCommand \
+  "{command: {name: [grip_stroke], position: [0.060], effort: [40.0], velocity: [0.080]}}"
+```
+
+The velocity value above is 0.080 m/s, not a native percentage.
 
 RG safety-switch status is published in the typed gripper state and in
 `/diagnostics`. The `safety_status_valid` field distinguishes unavailable data

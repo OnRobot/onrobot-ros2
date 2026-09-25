@@ -68,11 +68,8 @@ The conventional panel's 2FG force field uses the model's minimum nonzero
 force (20 N for 2FG7 and 40 N for 2FG14) through the live conventional ceiling.
 The panel selects that minimum by default; the API also accepts an explicit
 zero to request the firmware minimum convention. For controllers that expose
-runtime speed control, the conventional panel also provides a 1–100 **Speed
-(%)** setting and **Apply** button. The display confirms the controller
-readback, and a change applies only to future conventional commands. The
-launch argument `conventional_speed_percent:=1..100` sets the initial value
-(default 50%). This native percentage is not a guaranteed linear speed. See
+conventional speed control, the panel provides **Max aperture speed** in m/s.
+It is sent with the next Open, Close or Send target action. See
 the [conventional speed panel guide](../docs/realtime-control.md#conventional-2fg-speed-panel).
 
 ## Panel routing and state history

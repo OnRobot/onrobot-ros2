@@ -22,15 +22,17 @@ broadcaster's `diagnostics_topic` parameter can select another remappable name.
 aperture in metres; `command.name` is `[grip_stroke]`.
 `command.effort` is an optional one-element array of requested maximum effort in newtons. The backend
 supplies valid aperture limits; applications must not infer them from the model
-name. A nonempty `command.velocity` is rejected; velocity control belongs to
-the realtime controller.
+name. Supported 2FG conventional controllers accept one positive maximum
+aperture speed in `command.velocity` (m/s). See the
+[action contract](../../onrobot_gripper_controllers/README.md) for conversion
+and omission semantics. Other conventional controllers reject nonempty velocity.
 
 The conventional controller exposes `conventional_speed_control` as a fixed
 capability flag and `conventional_speed_percent` as an integer
 setting from 1–100. Runtime parameter updates are supported only when the
 capability is true, affect future goals, and are rejected while motion or a
-Stop handoff is active. The 2FG conventional RViz panel provides the same
-setting and verifies the controller readback; see the
+Stop handoff is active. The 2FG conventional RViz panel sends an explicit
+per-goal SI speed instead; see the
 [speed panel guide](../realtime-control.md#conventional-2fg-speed-panel).
 
 ## Model-specific meaning

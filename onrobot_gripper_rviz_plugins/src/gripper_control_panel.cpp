@@ -14,8 +14,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
-#include <QSignalBlocker>
-#include <QSpinBox>
 #include <QSizePolicy>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -47,18 +45,7 @@ constexpr int kActionSucceeded = 3;
 constexpr int kActionCanceled = 4;
 constexpr int kActionAborted = 5;
 constexpr int kActionRejected = 6;
-constexpr int kSpeedChecking = 0;
-constexpr int kSpeedReady = 1;
-constexpr int kSpeedApplying = 2;
-constexpr int kSpeedVerifying = 3;
-constexpr int kSpeedRejected = 4;
-constexpr int kSpeedUnavailable = 5;
-constexpr int kSpeedMismatch = 6;
-constexpr int kSpeedTimeout = 7;
-constexpr int kSpeedUnsupported = 8;
-constexpr int kSpeedUnapplied = 9;
 constexpr std::int64_t kSpeedReadTimeoutNs = 3000000000LL;
-constexpr std::int64_t kSpeedWriteNoticeNs = 3000000000LL;
 constexpr std::int64_t kSpeedPollIntervalNs = 2000000000LL;
 
 std::int64_t steadyNowNs() {
@@ -151,34 +138,23 @@ GripperControlPanel::GripperControlPanel(QWidget *i_parent)
   m_speedGroup->setObjectName("conventionalSpeedGroup");
   m_speedGroup->setVisible(false);
   auto *speedLayout = new QVBoxLayout(m_speedGroup);
-  speedLayout->setSpacing(2);
   auto *speedInputLayout = new QHBoxLayout();
-  speedInputLayout->addWidget(new QLabel("Speed (%):", m_speedGroup));
-  m_speedSpinBox = new QSpinBox(m_speedGroup);
-  m_speedSpinBox->setObjectName("conventionalSpeedPercent");
-  m_speedSpinBox->setRange(1, 100);
-  m_speedSpinBox->setSingleStep(1);
-  m_speedSpinBox->setSuffix("%");
-  m_speedSpinBox->setValue(50);
+  speedInputLayout->addWidget(new QLabel("Max aperture speed:", m_speedGroup));
+  m_speedSpinBox = new QDoubleSpinBox(m_speedGroup);
+  m_speedSpinBox->setObjectName("conventionalSpeedMps");
+  m_speedSpinBox->setDecimals(3);
+  m_speedSpinBox->setRange(0.001, 0.400);
+  m_speedSpinBox->setSingleStep(0.010);
+  m_speedSpinBox->setSuffix(" m/s");
+  m_speedSpinBox->setValue(0.100);
   m_speedSpinBox->setToolTip(
-      "Native 2FG conventional speed percentage for future goals");
+      "Optional maximum aperture speed, in m/s. The controller selects the "
+      "native speed using an estimated full-travel peak at the requested force.");
   speedInputLayout->addWidget(m_speedSpinBox, 1);
-  m_speedApplyButton = new QPushButton("Apply", m_speedGroup);
-  m_speedApplyButton->setObjectName("applyConventionalSpeed");
-  m_speedApplyButton->setEnabled(false);
-  speedInputLayout->addWidget(m_speedApplyButton);
   speedLayout->addLayout(speedInputLayout);
-  m_speedCurrentLabel = new QLabel("Controller setting: —", m_speedGroup);
-  m_speedCurrentLabel->setObjectName("conventionalSpeedCurrent");
-  m_speedCurrentLabel->setMinimumWidth(180);
-  m_speedStatusLabel = new QLabel("Checking controller speed support",
-                                  m_speedGroup);
+  m_speedStatusLabel = new QLabel("Used by the next Open, Close or Send target.", m_speedGroup);
   m_speedStatusLabel->setObjectName("conventionalSpeedStatus");
-  m_speedStatusLabel->setMinimumWidth(180);
   m_speedStatusLabel->setWordWrap(true);
-  m_speedStatusLabel->setSizePolicy(QSizePolicy::Preferred,
-                                    QSizePolicy::Preferred);
-  speedLayout->addWidget(m_speedCurrentLabel);
   speedLayout->addWidget(m_speedStatusLabel);
   layout->addWidget(m_speedGroup);
 
@@ -318,74 +294,21 @@ GripperControlPanel::GripperControlPanel(QWidget *i_parent)
          m_sharedState->safety_2_triggered.load(std::memory_order_relaxed) ||
          m_sharedState->safety_dc_error.load(std::memory_order_relaxed));
     const auto speed_now_ns = steadyNowNs();
-    const bool speed_read_in_flight =
-        m_sharedState->speed_read_in_flight.load(std::memory_order_acquire);
-    if (speed_read_in_flight) {
-      const auto read_started_ns =
-          m_sharedState->speed_read_started_ns.load(std::memory_order_acquire);
-      if (read_started_ns > 0 &&
-          speed_now_ns - read_started_ns >= kSpeedReadTimeoutNs) {
-        // Invalidate this request before retrying so a late response cannot
-        // overwrite a more recent controller value.
-        m_sharedState->speed_request_generation.fetch_add(
-            1, std::memory_order_acq_rel);
-        m_sharedState->speed_read_in_flight.store(false,
-                                                  std::memory_order_release);
-        setSpeedStatus(
-            kSpeedTimeout,
-            m_sharedState->speed_write_pending.load(std::memory_order_acquire)
-                ? "Speed update is waiting for readback; motion stays disabled."
-                : "Controller speed readback timed out; retrying.");
-      }
+    if (m_sharedState->speed_read_in_flight.load() &&
+        speed_now_ns - m_sharedState->speed_read_started_ns.load() >= kSpeedReadTimeoutNs) {
+      m_sharedState->speed_request_generation.fetch_add(1);
+      m_sharedState->speed_read_in_flight.store(false);
     }
-    const bool speed_write_pending =
-        m_sharedState->speed_write_pending.load(std::memory_order_acquire);
-    const bool speed_set_acknowledged =
-        m_sharedState->speed_set_acknowledged.load(std::memory_order_acquire);
-    if (speed_write_pending && !speed_set_acknowledged) {
-      const auto write_started_ns = m_sharedState->speed_write_started_ns.load(
-          std::memory_order_acquire);
-      if (write_started_ns > 0 &&
-          speed_now_ns - write_started_ns >= kSpeedWriteNoticeNs) {
-        // The controller may have committed the parameter even when its
-        // service response was lost.  Move into readback reconciliation;
-        // never guess whether the write succeeded and never leave the panel
-        // permanently waiting for a response that may not arrive.
-        m_sharedState->speed_set_acknowledged.store(true,
-                                                    std::memory_order_release);
-        m_sharedState->speed_last_read_ns.store(0,
-                                                std::memory_order_release);
-        setSpeedStatus(
-            kSpeedTimeout,
-            "No response to the speed update; checking the controller value. "
-            "Motion stays disabled until readback confirms it.");
-      }
+    if (!m_sharedState->speed_read_in_flight.load() && m_speedGetParametersClient &&
+        m_speedGetParametersClient->service_is_ready() &&
+        speed_now_ns - m_sharedState->speed_last_read_ns.load() >= kSpeedPollIntervalNs) {
+      requestSpeedParameters();
     }
-    if (!m_sharedState->speed_read_in_flight.load(std::memory_order_acquire) &&
-        m_speedGetParametersClient &&
-        m_speedGetParametersClient->service_is_ready()) {
-      const bool checked = m_sharedState->speed_capability_checked.load(
-          std::memory_order_acquire);
-      const bool supported = m_sharedState->speed_control_available.load(
-          std::memory_order_acquire);
-      const auto last_read_ns =
-          m_sharedState->speed_last_read_ns.load(std::memory_order_acquire);
-      const bool verify_write = speed_write_pending && speed_set_acknowledged;
-      const bool refresh_supported =
-          !speed_write_pending && checked && supported &&
-          (last_read_ns == 0 ||
-           speed_now_ns - last_read_ns >= kSpeedPollIntervalNs);
-      if (!checked || verify_write || refresh_supported) {
-        requestSpeedParameters();
-      }
-    } else if (!m_sharedState->speed_capability_checked.load(
-                   std::memory_order_acquire)) {
-      setSpeedStatus(kSpeedChecking,
-                     "Waiting for the conventional controller parameters");
-    }
+    const bool speed_ready = !m_sharedState->speed_control_available.load() ||
+        speed_now_ns - m_sharedState->speed_confirmed_ns.load() <
+            kSpeedPollIntervalNs + kSpeedReadTimeoutNs;
     const bool command_ready =
-        state_fresh && standard_ready && has_limits && !safety_blocked &&
-        !speed_write_pending;
+        state_fresh && standard_ready && has_limits && !safety_blocked && speed_ready;
     setCommandWidgetsEnabled(command_ready);
     updateSpeedPanel(command_ready);
 
@@ -450,21 +373,7 @@ GripperControlPanel::GripperControlPanel(QWidget *i_parent)
     m_targetSpinBox->setValue(m_jointLowerM);
     sendGoal(m_jointLowerM);
   });
-  connect(m_speedSpinBox, qOverload<int>(&QSpinBox::valueChanged), this,
-          [this](int value) {
-            const auto state = m_sharedState;
-            if (!state ||
-                state->speed_write_pending.load(std::memory_order_acquire)) {
-              return;
-            }
-            state->speed_input_dirty.store(true, std::memory_order_release);
-            setSpeedStatus(
-                kSpeedUnapplied,
-                "Selected " + std::to_string(value) +
-                    "%; Apply to use it for the next conventional command.");
-          });
-  connect(m_speedApplyButton, &QPushButton::clicked, this,
-          [this]() { applySpeedSetting(); });
+
 }
 
 GripperControlPanel::~GripperControlPanel() {
@@ -474,11 +383,9 @@ GripperControlPanel::~GripperControlPanel() {
   m_jointStateSubscription.reset();
   m_limitSubscription.reset();
   m_gripperStateSubscription.reset();
-  m_parameterEventSubscription.reset();
   m_actionClient.reset();
   m_controllerListClient.reset();
   m_speedGetParametersClient.reset();
-  m_speedSetParametersClient.reset();
 }
 
 void GripperControlPanel::onInitialize() {
@@ -551,8 +458,6 @@ void GripperControlPanel::onInitialize() {
   m_actionClient.reset();
   m_controllerListClient.reset();
   m_speedGetParametersClient.reset();
-  m_speedSetParametersClient.reset();
-  m_parameterEventSubscription.reset();
   m_actionClient =
       rclcpp_action::create_client<GripperAction>(m_node, m_actionName);
   m_controllerListClient =
@@ -564,88 +469,10 @@ void GripperControlPanel::onInitialize() {
     if (!m_controllerParameterNode.empty()) {
       m_speedGetParametersClient = m_node->create_client<GetParameters>(
           serviceForController(m_controllerParameterNode, "get_parameters"));
-      m_speedSetParametersClient = m_node->create_client<SetParametersAtomically>(
-          serviceForController(m_controllerParameterNode,
-                               "set_parameters_atomically"));
     }
   } catch (const std::exception &error) {
     m_controllerParameterNode.clear();
-    setSpeedStatus(kSpeedUnavailable,
-                   std::string("Cannot resolve controller parameter services: ") +
-                       error.what());
-  }
-  if (!m_controllerParameterNode.empty()) {
-    const auto state = m_sharedState;
-    const auto controllerNode = m_controllerParameterNode;
-    m_parameterEventSubscription =
-        m_node->create_subscription<rcl_interfaces::msg::ParameterEvent>(
-            "/parameter_events", rclcpp::ParameterEventsQoS(),
-            [state, controllerNode](
-                const rcl_interfaces::msg::ParameterEvent::SharedPtr event) {
-              if (event->node != controllerNode) {
-                return;
-              }
-              bool speed_control_seen = false;
-              bool speed_control_enabled = false;
-              bool speed_value_seen = false;
-              int speed_value = 0;
-              const auto inspect = [&](
-                  const std::vector<rcl_interfaces::msg::Parameter> &parameters) {
-                for (const auto &parameter : parameters) {
-                  if (parameter.name == "conventional_speed_control" &&
-                      parameter.value.type ==
-                          rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-                    speed_control_seen = true;
-                    speed_control_enabled = parameter.value.bool_value;
-                  } else if (parameter.name == "conventional_speed_percent" &&
-                             parameter.value.type == rcl_interfaces::msg::
-                                 ParameterType::PARAMETER_INTEGER &&
-                             parameter.value.integer_value >= 1 &&
-                             parameter.value.integer_value <= 100) {
-                    speed_value_seen = true;
-                    speed_value = static_cast<int>(
-                        parameter.value.integer_value);
-                  }
-                }
-              };
-              inspect(event->new_parameters);
-              inspect(event->changed_parameters);
-              if (speed_control_seen) {
-                state->speed_capability_checked.store(
-                    true, std::memory_order_release);
-                state->speed_control_available.store(
-                    speed_control_enabled, std::memory_order_release);
-              }
-              if (speed_value_seen) {
-                state->speed_percent.store(speed_value,
-                                           std::memory_order_relaxed);
-                state->speed_current_valid.store(true,
-                                                std::memory_order_release);
-                state->speed_event_generation.fetch_add(
-                    1, std::memory_order_acq_rel);
-              }
-              if (speed_control_seen && !speed_control_enabled) {
-                GripperControlPanel::setSpeedStatus(
-                    state, kSpeedUnsupported,
-                    "Runtime speed adjustment is not available for this "
-                    "controller or backend.");
-              } else if (speed_value_seen &&
-                         !state->speed_write_pending.load(
-                             std::memory_order_acquire) &&
-                         !state->speed_input_dirty.load(
-                             std::memory_order_acquire) &&
-                         state->speed_status_code.load(
-                             std::memory_order_acquire) != kSpeedRejected &&
-                         state->speed_status_code.load(
-                             std::memory_order_acquire) != kSpeedUnapplied &&
-                         state->speed_status_code.load(
-                             std::memory_order_acquire) != kSpeedMismatch) {
-                GripperControlPanel::setSpeedStatus(
-                    state, kSpeedReady,
-                    "Controller speed updated to " +
-                        std::to_string(speed_value) + "%.");
-              }
-            });
+    RCLCPP_WARN(m_node->get_logger(), "Cannot resolve speed parameters: %s", error.what());
   }
   const auto state = m_sharedState;
   const auto jointName = m_jointName;
@@ -715,8 +542,6 @@ void GripperControlPanel::onInitialize() {
           });
   if (m_speedSpinBox) {
     m_speedSpinBox->setEnabled(false);
-    m_speedApplyButton->setEnabled(false);
-    m_speedCurrentLabel->setText("Controller setting: —");
   }
   RCLCPP_INFO(m_node->get_logger(),
               "Gripper panel: joint '%s', feedback '%s', action '%s'",
@@ -738,9 +563,10 @@ bool GripperControlPanel::hasFreshMeasurement() const {
 }
 
 void GripperControlPanel::sendGoal(double i_positionM) {
-  if (m_sharedState &&
-      m_sharedState->speed_write_pending.load(std::memory_order_acquire)) {
-    setStatus("Waiting for the conventional speed setting to be confirmed");
+  if (m_sharedState && m_sharedState->speed_control_available.load() &&
+      steadyNowNs() - m_sharedState->speed_confirmed_ns.load() >=
+          kSpeedPollIntervalNs + kSpeedReadTimeoutNs) {
+    setStatus("Waiting for current conventional speed support");
     return;
   }
   auto action_client = m_actionClient;
@@ -763,6 +589,9 @@ void GripperControlPanel::sendGoal(double i_positionM) {
   goal.command.position = {
       std::clamp(i_positionM, m_jointLowerM, m_jointUpperM)};
   goal.command.effort = {m_effortSpinBox->value()};
+  if (m_sharedState->speed_control_available.load()) {
+    goal.command.velocity = {m_speedSpinBox->value()};
+  }
 
   const auto state = m_sharedState;
   rclcpp_action::Client<GripperAction>::SendGoalOptions options;
@@ -844,382 +673,54 @@ void GripperControlPanel::setStatus(const QString &i_text) {
   }
 }
 
-void GripperControlPanel::setSpeedStatus(const std::shared_ptr<SharedState> &state,
-                                         int code,
-                                         const std::string &message) {
-  if (!state) {
-    return;
-  }
-  {
-    std::lock_guard<std::mutex> lock(state->speed_status_mutex);
-    state->speed_status_message = message;
-  }
-  state->speed_status_code.store(code, std::memory_order_release);
-}
-
-void GripperControlPanel::setSpeedStatus(int code,
-                                         const std::string &message) {
-  setSpeedStatus(m_sharedState, code, message);
-}
-
-void GripperControlPanel::requestSpeedReadback(
-    const GetParametersClient::SharedPtr &client,
-    const std::shared_ptr<SharedState> &state, std::uint64_t generation,
-    std::uint64_t event_generation, int expected_percent) {
-  if (!client || !state) {
-    return;
-  }
-  auto request = std::make_shared<GetParameters::Request>();
-  request->names = {"conventional_speed_control",
-                    "conventional_speed_percent"};
-  try {
-    client->async_send_request(
-        request,
-        [state, generation, event_generation,
-         expected_percent](GetParametersClient::SharedFuture future) {
-          if (state->speed_request_generation.load(
-                  std::memory_order_acquire) != generation) {
-            return;
-          }
-          state->speed_read_in_flight.store(false, std::memory_order_release);
-          try {
-            const auto response = future.get();
-            if (!response || response->values.size() != 2 ||
-                response->values[0].type !=
-                    rcl_interfaces::msg::ParameterType::PARAMETER_BOOL) {
-              GripperControlPanel::setSpeedStatus(
-                  state, kSpeedUnavailable,
-                  "Controller did not return a valid conventional speed "
-                  "capability.");
-              return;
-            }
-            const bool speed_supported = response->values[0].bool_value;
-            state->speed_capability_checked.store(true,
-                                                  std::memory_order_release);
-            state->speed_control_available.store(speed_supported,
-                                                 std::memory_order_release);
-            if (!speed_supported) {
-              state->speed_current_valid.store(false,
-                                               std::memory_order_release);
-              GripperControlPanel::setSpeedStatus(
-                  state, kSpeedUnsupported,
-                  "Runtime speed adjustment is not available for this "
-                  "controller or backend.");
-              return;
-            }
-            if (response->values[1].type !=
-                    rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER ||
-                response->values[1].integer_value < 1 ||
-                response->values[1].integer_value > 100) {
-              GripperControlPanel::setSpeedStatus(
-                  state, kSpeedUnavailable,
-                  "Controller returned an invalid speed percentage.");
-              return;
-            }
-
-            const bool event_is_newer =
-                state->speed_event_generation.load(std::memory_order_acquire) !=
-                event_generation;
-            if (!event_is_newer) {
-              state->speed_percent.store(
-                  static_cast<int>(response->values[1].integer_value),
-                  std::memory_order_relaxed);
-              state->speed_current_valid.store(true,
-                                               std::memory_order_release);
-            }
-            const int current_percent = state->speed_percent.load(
-                std::memory_order_acquire);
-            const bool pending = state->speed_write_pending.load(
-                std::memory_order_acquire);
-            if (pending && expected_percent >= 1 && expected_percent <= 100) {
-              state->speed_write_pending.store(false,
-                                               std::memory_order_release);
-              state->speed_set_acknowledged.store(false,
-                                                  std::memory_order_release);
-              state->speed_expected_percent.store(-1,
-                                                  std::memory_order_release);
-              state->speed_input_dirty.store(false,
-                                             std::memory_order_release);
-              // Supersede the original SetParameters callback. It may arrive
-              // after this readback when its service response was delayed;
-              // that stale response must not restart or overwrite the settled
-              // transaction.
-              state->speed_request_generation.fetch_add(
-                  1, std::memory_order_acq_rel);
-              if (current_percent == expected_percent) {
-                GripperControlPanel::setSpeedStatus(
-                    state, kSpeedReady,
-                    "Applied; the next conventional command uses " +
-                        std::to_string(current_percent) + "%.");
-              } else {
-                GripperControlPanel::setSpeedStatus(
-                    state, kSpeedMismatch,
-                    "Requested " + std::to_string(expected_percent) +
-                        "%, but the controller reports " +
-                        std::to_string(current_percent) +
-                        "%. Review other speed changes before moving.");
-              }
-            } else if (!pending &&
-                       !state->speed_input_dirty.load(
-                           std::memory_order_acquire) &&
-                       state->speed_status_code.load(
-                           std::memory_order_acquire) != kSpeedRejected &&
-                       state->speed_status_code.load(
-                           std::memory_order_acquire) != kSpeedUnapplied &&
-                       state->speed_status_code.load(
-                           std::memory_order_acquire) != kSpeedMismatch) {
-              GripperControlPanel::setSpeedStatus(
-                  state, kSpeedReady,
-                  "Controller speed: " + std::to_string(current_percent) +
-                      "%. Applies to future conventional commands.");
-            }
-          } catch (const std::exception &error) {
-            const bool pending = state->speed_write_pending.load(
-                std::memory_order_acquire);
-            GripperControlPanel::setSpeedStatus(
-                state, pending ? kSpeedTimeout : kSpeedUnavailable,
-                std::string("Could not confirm controller speed: ") +
-                    error.what() +
-                    (pending ? ". Motion stays disabled until readback succeeds."
-                             : ". Retrying the controller readback."));
-          }
-        });
-  } catch (const std::exception &error) {
-    state->speed_read_in_flight.store(false, std::memory_order_release);
-    GripperControlPanel::setSpeedStatus(
-        state, kSpeedUnavailable,
-        std::string("Could not request controller speed: ") + error.what());
-  }
-}
-
 void GripperControlPanel::requestSpeedParameters() {
   const auto state = m_sharedState;
-  const auto client = m_speedGetParametersClient;
-  if (!state || !client || !client->service_is_ready()) {
-    return;
-  }
-  bool expected_in_flight = false;
-  if (!state->speed_read_in_flight.compare_exchange_strong(
-          expected_in_flight, true, std::memory_order_acq_rel)) {
-    return;
-  }
-  const auto generation = state->speed_request_generation.load(
-      std::memory_order_acquire);
-  const auto event_generation = state->speed_event_generation.load(
-      std::memory_order_acquire);
-  const bool verify_write = state->speed_write_pending.load(
-                                std::memory_order_acquire) &&
-                            state->speed_set_acknowledged.load(
-                                std::memory_order_acquire);
-  const int expected_percent =
-      verify_write
-          ? state->speed_expected_percent.load(std::memory_order_acquire)
-          : -1;
-  const auto now_ns = steadyNowNs();
-  state->speed_read_started_ns.store(now_ns, std::memory_order_release);
-  state->speed_last_read_ns.store(now_ns, std::memory_order_release);
-  requestSpeedReadback(client, state, generation, event_generation,
-                       expected_percent);
-}
-
-void GripperControlPanel::applySpeedSetting() {
-  const auto state = m_sharedState;
-  const auto client = m_speedSetParametersClient;
-  if (!state || !client || !state->speed_control_available.load(
-                              std::memory_order_acquire)) {
-    setSpeedStatus(kSpeedUnavailable,
-                   "The controller does not currently support speed updates.");
-    return;
-  }
-  if (!client->service_is_ready()) {
-    setSpeedStatus(kSpeedUnavailable,
-                   "Controller parameter service is unavailable; no update "
-                   "was sent.");
-    return;
-  }
-  if (state->speed_write_pending.load(std::memory_order_acquire) ||
-      state->speed_read_in_flight.load(std::memory_order_acquire)) {
-    return;
-  }
-  if (!m_commandWidgetsEnabled || !hasFreshMeasurement() ||
-      !state->standard_action_ready.load(std::memory_order_acquire) ||
-      !state->has_limits.load(std::memory_order_acquire)) {
-    setSpeedStatus(kSpeedRejected,
-                   "Wait for fresh gripper state and an active conventional "
-                   "controller before applying speed.");
-    return;
-  }
-  const int action_status = state->action_status.load(std::memory_order_acquire);
-  if (action_status == kActionAccepted || action_status == kActionMoving) {
-    setSpeedStatus(kSpeedRejected,
-                   "Wait for the current conventional motion to finish.");
-    return;
-  }
-
-  const int requested_percent = m_speedSpinBox->value();
-  const auto generation = state->speed_request_generation.fetch_add(
-                              1, std::memory_order_acq_rel) +
-                          1;
-  state->speed_expected_percent.store(requested_percent,
-                                      std::memory_order_release);
-  state->speed_write_pending.store(true, std::memory_order_release);
-  state->speed_set_acknowledged.store(false, std::memory_order_release);
-  state->speed_write_started_ns.store(steadyNowNs(),
-                                      std::memory_order_release);
-  setSpeedStatus(kSpeedApplying,
-                 "Applying " + std::to_string(requested_percent) +
-                     "% to the conventional controller");
-
-  auto request = std::make_shared<SetParametersAtomically::Request>();
-  request->parameters = {
-      rclcpp::Parameter("conventional_speed_percent", requested_percent)
-          .to_parameter_msg()};
+  if (!state || !m_speedGetParametersClient) return;
+  const auto generation = state->speed_request_generation.fetch_add(1) + 1;
+  state->speed_read_in_flight.store(true);
+  state->speed_read_started_ns.store(steadyNowNs());
+  state->speed_last_read_ns.store(steadyNowNs());
+  auto request = std::make_shared<GetParameters::Request>();
+  request->names = {"conventional_speed_control", "model"};
   try {
-    const auto read_client = m_speedGetParametersClient;
-    client->async_send_request(
-        request,
-        [state, generation, requested_percent,
-         read_client](SetParametersClient::SharedFuture future) {
-          if (state->speed_request_generation.load(
-                  std::memory_order_acquire) != generation) {
-            return;
-          }
+    m_speedGetParametersClient->async_send_request(
+        request, [state, generation](GetParametersClient::SharedFuture future) {
+          if (state->speed_request_generation.load() != generation) return;
+          state->speed_read_in_flight.store(false);
           try {
             const auto response = future.get();
-            if (!response || !response->result.successful) {
-              state->speed_write_pending.store(false,
-                                               std::memory_order_release);
-              state->speed_set_acknowledged.store(false,
-                                                  std::memory_order_release);
-              state->speed_expected_percent.store(-1,
-                                                  std::memory_order_release);
-              const auto reason = response ? response->result.reason
-                                           : std::string("empty service response");
-              GripperControlPanel::setSpeedStatus(
-                  state, kSpeedRejected,
-                  "Rejected: " +
-                      (reason.empty() ? std::string("controller declined the update")
-                                      : reason));
-              return;
-            }
-            state->speed_set_acknowledged.store(true,
-                                                std::memory_order_release);
-            state->speed_expected_percent.store(requested_percent,
-                                                std::memory_order_release);
-            state->speed_last_read_ns.store(0, std::memory_order_release);
-            GripperControlPanel::setSpeedStatus(
-                state, kSpeedVerifying,
-                "Controller accepted the setting; checking its current value.");
-            if (read_client && read_client->service_is_ready()) {
-              bool expected_in_flight = false;
-              if (state->speed_read_in_flight.compare_exchange_strong(
-                      expected_in_flight, true, std::memory_order_acq_rel)) {
-                const auto event_generation = state->speed_event_generation.load(
-                    std::memory_order_acquire);
-                const auto now_ns = steadyNowNs();
-                state->speed_read_started_ns.store(now_ns,
-                                                   std::memory_order_release);
-                state->speed_last_read_ns.store(now_ns,
-                                                std::memory_order_release);
-                GripperControlPanel::requestSpeedReadback(
-                    read_client, state, generation, event_generation,
-                    requested_percent);
-              }
-            }
-          } catch (const std::exception &error) {
-            state->speed_set_acknowledged.store(true,
-                                                std::memory_order_release);
-            state->speed_expected_percent.store(requested_percent,
-                                                std::memory_order_release);
-            state->speed_last_read_ns.store(0, std::memory_order_release);
-            GripperControlPanel::setSpeedStatus(
-                state, kSpeedTimeout,
-                std::string("No conclusive speed update response: ") +
-                    error.what() +
-                    ". Motion stays disabled until the controller setting is "
-                    "read back.");
+            using Type = rcl_interfaces::msg::ParameterType;
+            if (response->values.size() != 2 ||
+                response->values[0].type != Type::PARAMETER_BOOL) return;
+            const bool enabled = response->values[0].bool_value;
+            const auto &model = response->values[1];
+            const int model_id = model.type == Type::PARAMETER_STRING ?
+                (model.string_value == "2fg7" ? 7 : model.string_value == "2fg14" ? 14 : 0) : 0;
+            // Never silently fall back to an unbounded native command if a
+            // speed-capable controller returns incomplete model information.
+            if (enabled && model_id == 0) return;
+            state->speed_model.store(model_id);
+            state->speed_control_available.store(enabled);
+            state->speed_confirmed_ns.store(steadyNowNs());
+          } catch (const std::exception &) {
+            // Existing confirmed state expires; a later poll can recover.
           }
         });
-  } catch (const std::exception &error) {
-    // A send failure does not prove that the remote parameter service did not
-    // receive the request. Keep motion disabled and reconcile by readback.
-    state->speed_set_acknowledged.store(true, std::memory_order_release);
-    setSpeedStatus(kSpeedTimeout,
-                   std::string("Speed update could not be confirmed: ") +
-                       error.what() +
-                       ". Motion stays disabled until readback succeeds.");
+  } catch (const std::exception &) {
+    state->speed_read_in_flight.store(false);
   }
 }
 
 void GripperControlPanel::updateSpeedPanel(bool command_ready) {
-  const auto state = m_sharedState;
-  if (!state || !m_speedGroup) {
-    return;
-  }
-  const bool checked =
-      state->speed_capability_checked.load(std::memory_order_acquire);
-  const bool supported =
-      state->speed_control_available.load(std::memory_order_acquire);
-  m_speedGroup->setVisible(checked && supported);
-  if (!checked || !supported) {
-    return;
-  }
-  const bool current_valid =
-      state->speed_current_valid.load(std::memory_order_acquire);
-  const bool pending =
-      state->speed_write_pending.load(std::memory_order_acquire);
-  const bool read_in_flight =
-      state->speed_read_in_flight.load(std::memory_order_acquire);
-  const bool dirty =
-      state->speed_input_dirty.load(std::memory_order_acquire);
-  const int current_percent =
-      state->speed_percent.load(std::memory_order_acquire);
-  m_speedCurrentLabel->setText(
-      current_valid
-          ? QString("Controller setting: %1%").arg(current_percent)
-          : QString("Controller setting: —"));
-  if (current_valid && !dirty && !pending &&
-      m_speedSpinBox->value() != current_percent) {
-    const QSignalBlocker blocker(m_speedSpinBox);
-    m_speedSpinBox->setValue(current_percent);
-  }
-
-  QString status_message;
-  {
-    std::lock_guard<std::mutex> lock(state->speed_status_mutex);
-    status_message = QString::fromStdString(state->speed_status_message);
-  }
-  if (m_speedStatusLabel->text() != status_message) {
-    m_speedStatusLabel->setText(status_message);
-    updateWrappedLabelHeight(m_speedStatusLabel);
-  }
-  const int status_code =
-      state->speed_status_code.load(std::memory_order_acquire);
-  if (status_code == kSpeedRejected || status_code == kSpeedUnavailable ||
-      status_code == kSpeedMismatch || status_code == kSpeedTimeout) {
-    m_speedStatusLabel->setStyleSheet(
-        "QLabel { color: #c62828; font-weight: bold; }");
-  } else if (status_code == kSpeedReady) {
-    m_speedStatusLabel->setStyleSheet(
-        "QLabel { color: #2e7d32; font-weight: bold; }");
-  } else if (status_code == kSpeedApplying || status_code == kSpeedVerifying) {
-    m_speedStatusLabel->setStyleSheet(
-        "QLabel { color: #499dda; font-weight: bold; }");
-  } else if (status_code == kSpeedUnapplied) {
-    m_speedStatusLabel->setStyleSheet(
-        "QLabel { color: #ef6c00; font-weight: bold; }");
-  } else {
-    m_speedStatusLabel->setStyleSheet(QString());
-  }
-  m_speedSpinBox->setEnabled(supported && !pending);
-  const int action_status =
-      state->action_status.load(std::memory_order_acquire);
-  const bool action_idle = action_status != kActionAccepted &&
-                           action_status != kActionMoving;
-  m_speedApplyButton->setEnabled(
-      supported && current_valid && dirty && !pending && !read_in_flight &&
-      command_ready && action_idle && m_speedSetParametersClient &&
-      m_speedSetParametersClient->service_is_ready());
+  if (!m_sharedState || !m_speedGroup) return;
+  const bool supported = m_sharedState->speed_control_available.load();
+  m_speedGroup->setVisible(supported);
+  if (!supported) return;
+  m_speedSpinBox->setMaximum(m_sharedState->speed_model.load() == 14 ? 0.360 : 0.400);
+  m_speedSpinBox->setEnabled(command_ready);
+  m_speedStatusLabel->setText(command_ready
+      ? "Used by the next Open, Close or Send target."
+      : "Waiting for current controller and feedback.");
 }
 
 void GripperControlPanel::load(const rviz_common::Config &i_config) {
@@ -1227,6 +728,11 @@ void GripperControlPanel::load(const rviz_common::Config &i_config) {
   m_panelSettings.load(i_config);
   m_panelSettings.readDouble("target_aperture_m", m_savedTargetM);
   m_panelSettings.readDouble("effort_n", m_savedEffortN);
+  double saved_speed = 0.100;
+  if (m_panelSettings.readDouble("conventional_speed_m_s", saved_speed) &&
+      std::isfinite(saved_speed) && saved_speed > 0.0) {
+    m_speedSpinBox->setValue(saved_speed);
+  }
   m_panelSettings.readDouble("joint_lower_m", m_jointLowerM);
   m_panelSettings.readDouble("joint_upper_m", m_jointUpperM);
   m_panelSettings.readDouble("minimum_effort_n", m_minimumEffortN);
@@ -1266,6 +772,7 @@ void GripperControlPanel::save(rviz_common::Config i_config) const {
   m_panelSettings.writeDouble("effort_n",
                               m_effortSpinBox ? m_effortSpinBox->value()
                                               : m_savedEffortN);
+  m_panelSettings.writeDouble("conventional_speed_m_s", m_speedSpinBox->value());
   m_panelSettings.writeDouble("joint_lower_m", m_jointLowerM);
   m_panelSettings.writeDouble("joint_upper_m", m_jointUpperM);
   m_panelSettings.writeDouble("minimum_effort_n", m_minimumEffortN);

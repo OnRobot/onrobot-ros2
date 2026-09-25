@@ -146,10 +146,7 @@ For 2FG7, 2FG14, RG2, and RG6:
 For 2FG conventional control, the panel starts with the firmware-supported
 minimum nonzero force: 20 N for 2FG7 and 40 N for 2FG14. The live maximum is
 device- and power-dependent. When supported by the selected backend, choose a
-native speed percentage from 1–100 in the panel and click **Apply**; this
-affects subsequent conventional goals, not a motion already in progress. The
-launch argument `conventional_speed_percent:=1..100` sets the initial value
-(default 50%). It is not a guaranteed SI velocity. See the
+maximum aperture speed in m/s before clicking Open, Close or Send target. See the
 [conventional speed panel guide](docs/realtime-control.md#conventional-2fg-speed-panel).
 
 For 3FG15 and 3FG25:

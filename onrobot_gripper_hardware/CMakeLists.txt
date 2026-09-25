@@ -11,8 +11,8 @@ find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(onrobot_gripper_msgs REQUIRED)
-find_package(onrobot_tool_api 1.1.0 REQUIRED CONFIG)
+find_package(onrobot_gripper_msgs 1.2.0 REQUIRED)
+find_package(onrobot_tool_api 1.2.0 REQUIRED CONFIG)
 
 add_library(onrobot_gripper_semantics src/gripper_semantics.cpp)
 target_compile_features(onrobot_gripper_semantics PUBLIC cxx_std_17)
@@ -69,6 +69,6 @@ install(DIRECTORY include/ DESTINATION include
 install(FILES onrobot_gripper_hardware.xml README.md
   DESTINATION share/${PROJECT_NAME})
 ament_export_targets(export_onrobot_gripper_hardware HAS_LIBRARY_TARGET)
-ament_export_dependencies(onrobot_tool_api)
+ament_export_dependencies(onrobot_tool_api onrobot_gripper_msgs)
 ament_export_libraries(onrobot_gripper_semantics)
 ament_package()

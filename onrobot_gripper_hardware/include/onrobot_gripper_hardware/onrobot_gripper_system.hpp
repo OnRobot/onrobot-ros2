@@ -1,6 +1,8 @@
 #pragma once
+#include <onrobot_gripper_msgs/fault_recovery_protocol.hpp>
 
 #include "onrobot_gripper_hardware/command_stop_gate.hpp"
+#include "onrobot_gripper_hardware/realtime_rejection.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -59,6 +61,10 @@ public:
   write(const rclcpp::Time &i_time, const rclcpp::Duration &i_period) override;
 
 private:
+  onrobot_gripper_msgs::recovery::State recovery_state_;
+  bool recovery_lifecycle_active_{false};
+  onrobot::ParallelGripperRecoveryState m_cachedRecovery{};
+  uint64_t m_recoverySdkSequence{0};
   CommandStopGate command_stop_gate_;
   bool has_command_interface(const std::string &i_name) const;
   bool has_state_interface(const std::string &i_name) const;
@@ -73,6 +79,8 @@ private:
   std::unique_ptr<GripperKinematics> m_kinematics;
   onrobot::ParallelGripperState m_cachedState{};
   onrobot::ParallelGripperIdentity m_cachedIdentity{};
+  std::optional<onrobot::ConventionalVelocityCalibration> m_cachedVelocityCalibration;
+  RealtimeRejection m_realtimeRejection;
 
   onrobot::Model m_model{onrobot::Model::TwoFG7};
   onrobot::ModbusConfig m_connection;
@@ -150,7 +158,6 @@ private:
   uint64_t m_lastRealtimeSequence{0};
   uint64_t m_lastFaultRecoverySequence{0};
   uint64_t m_pendingStopSessionSequence{0};
-  uint64_t m_recoveryReconnectsAtRequest{0};
   double m_retiredPositionCommand{0.0};
   bool m_recoveryPending{false};
   bool m_conventionalRecoveryGate{false};

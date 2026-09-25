@@ -1,28 +1,28 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_ros2</name>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
   <description>The complete OnRobot ROS 2 suite, including evaluation support for 3FG15 and 3FG25.</description>
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <exec_depend version_gte="1.0.1">onrobot_2fg7</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_2fg14</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_rg2</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_rg6</exec_depend>
+  <exec_depend version_gte="1.0.3">onrobot_2fg7</exec_depend>
+  <exec_depend version_gte="1.0.3">onrobot_2fg14</exec_depend>
+  <exec_depend version_gte="1.0.2">onrobot_rg2</exec_depend>
+  <exec_depend version_gte="1.0.2">onrobot_rg6</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_3fg15</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_3fg25</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_gripper_bringup</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_gripper_controllers</exec_depend>
+  <exec_depend version_gte="1.2.0">onrobot_gripper_controllers</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_gripper_demos</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_gripper_description</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_gripper_hardware</exec_depend>
+  <exec_depend version_gte="1.1.0">onrobot_gripper_hardware</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_gripper_isaac</exec_depend>
   <exec_depend version_gte="1.0.1">onrobot_gripper_moveit_config</exec_depend>
-  <exec_depend version_gte="1.0.0">onrobot_gripper_msgs</exec_depend>
-  <exec_depend version_gte="1.0.1">onrobot_gripper_rviz_plugins</exec_depend>
+  <exec_depend version_gte="1.2.0">onrobot_gripper_msgs</exec_depend>
+  <exec_depend version_gte="1.1.0">onrobot_gripper_rviz_plugins</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

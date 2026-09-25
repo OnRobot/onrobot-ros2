@@ -9,7 +9,8 @@ find_package(ament_cmake REQUIRED)
 find_package(controller_interface REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(hardware_interface REQUIRED)
-find_package(onrobot_gripper_msgs REQUIRED)
+find_package(onrobot_gripper_msgs 1.2.0 REQUIRED)
+find_package(onrobot_tool_api 1.2.0 CONFIG REQUIRED)
 find_package(parallel_gripper_controller REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -31,6 +32,8 @@ ament_target_dependencies(onrobot_gripper_controller
   controller_interface diagnostic_msgs hardware_interface onrobot_gripper_msgs
   parallel_gripper_controller pluginlib rclcpp rclcpp_action rclcpp_lifecycle
   realtime_tools std_srvs)
+target_link_libraries(onrobot_gripper_controller onrobot::tool_api)
+ament_export_dependencies(onrobot_tool_api onrobot_gripper_msgs)
 
 pluginlib_export_plugin_description_file(controller_interface onrobot_gripper_controller.xml)
 

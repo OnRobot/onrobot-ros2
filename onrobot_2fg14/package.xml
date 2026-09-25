@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
 <name>onrobot_2fg14</name>
-<version>1.0.1</version>
+<version>1.0.3</version>
 <description>
 ROS 2 description, model-specific control configuration, and visualization for the OnRobot 2FG14 gripper.
 </description>
@@ -16,7 +16,7 @@ ROS 2 description, model-specific control configuration, and visualization for t
 <exec_depend>ros2_control</exec_depend>
 <exec_depend>tf2_ros</exec_depend>
 <exec_depend>onrobot_gripper_controllers</exec_depend>
-<exec_depend>onrobot_gripper_hardware</exec_depend>
+<exec_depend version_gte="1.1.0">onrobot_gripper_hardware</exec_depend>
 <test_depend>ament_lint_auto</test_depend>
 <test_depend>ament_lint_common</test_depend>
 <export>

@@ -50,6 +50,11 @@ hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
   info_ = params.hardware_info;
+  if (info_.is_async) {
+    RCLCPP_ERROR(rclcpp::get_logger("onrobot_parallel_gripper_fake_system"),
+                 "Recovery protocol requires synchronous hardware read/update/write");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
   const auto model = info_.hardware_parameters.find("model");
   model_ = model == info_.hardware_parameters.end() ? "" : model->second;
   is_2fg_ = model_ == "2fg7" || model_ == "2fg14";
@@ -69,6 +74,14 @@ hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_init(
                                         : onrobot::Model::TwoFG14;
     conventional_min_force_n_ = onrobot::minimumConventionalForceN(model);
     conventional_max_force_n_ = model == onrobot::Model::TwoFG7 ? 140.0 : 280.0;
+    conventional_default_force_n_ = parameter(
+        info_, "default_force_n", conventional_min_force_n_);
+    if (conventional_default_force_n_ < conventional_min_force_n_ ||
+        conventional_default_force_n_ > conventional_max_force_n_) {
+      RCLCPP_ERROR(rclcpp::get_logger("onrobot_parallel_gripper_fake_system"),
+                   "default_force_n must be within the fake 2FG force limits");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
   } else {
     conventional_min_force_n_ = 0.0;
     conventional_max_force_n_ = model_ == "rg2" ? 40.0 : 120.0;
@@ -156,6 +169,10 @@ hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_init(
 std::vector<hardware_interface::StateInterface>
 OnRobotParallelGripperFakeSystem::export_state_interfaces() {
   std::vector<hardware_interface::StateInterface> result;
+  for (std::size_t i = 0; i < onrobot_gripper_msgs::recovery::Count; ++i) {
+    const auto name = onrobot_gripper_msgs::recovery::names[i];
+    if (hasState(info_.joints.front(), name)) result.emplace_back("grip_stroke", name, &recovery_state_.values[i]);
+  }
   if (hasState(info_.joints.front(), "realtime_force_control_available")) {
     result.emplace_back("grip_stroke", "realtime_force_control_available",
                         &realtime_force_control_available_);
@@ -312,6 +329,7 @@ OnRobotParallelGripperFakeSystem::on_export_command_interfaces() {
 
 hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_activate(
     const rclcpp_lifecycle::State &) {
+  recovery_lifecycle_active_ = true;
   position_command_ = position_state_;
   velocity_state_ = 0.0;
   visual_velocity_state_ = 0.0;
@@ -325,7 +343,19 @@ hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_activate
 
 hardware_interface::return_type OnRobotParallelGripperFakeSystem::read(
     const rclcpp::Time &, const rclcpp::Duration &) {
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] =
+      recovery_lifecycle_active_ && faulted_state_ > 0.5 &&
+      std::isfinite(position_state_);
   return hardware_interface::return_type::OK;
+}
+
+hardware_interface::CallbackReturn OnRobotParallelGripperFakeSystem::on_deactivate(
+    const rclcpp_lifecycle::State &) {
+  recovery_lifecycle_active_ = false;
+  recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] = 0;
+  realtime_active_ = false;
+  position_command_ = position_state_;
+  return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
@@ -338,24 +368,49 @@ hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
   const double previous_mechanism = measured_mechanism_position_state_;
   bool stop_issued = false;
 
-  if (std::isfinite(fault_recovery_sequence_command_)) {
+  if (faulted_state_ > 0.5 || !recovery_lifecycle_active_) {
+    // Logical faults inhibit motion just as transport faults do. Retire old
+    // intent even when no recovery request accompanies this write.
+    position_command_ = position_state_;
+    conventional_sequence_command_ = nan();
+    realtime_sequence_command_ = nan();
+    realtime_active_ = false;
+    active_mode_state_ = 0.0;
+    busy_state_ = 0.0;
+    velocity_state_ = visual_velocity_state_ = 0.0;
+  }
+
+  if (!std::isnan(fault_recovery_sequence_command_)) {
     uint64_t sequence = 0;
     if (!decodeCommandSequence(fault_recovery_sequence_command_, sequence)) {
       fault_recovery_sequence_command_ = nan();
       return hardware_interface::return_type::ERROR;
     }
-    if (sequence != last_fault_recovery_sequence_) {
+    if (sequence > last_fault_recovery_sequence_) {
       last_fault_recovery_sequence_ = sequence;
       fault_recovery_sequence_ack_state_ = static_cast<double>(sequence);
-      if (faulted_state_ > 0.5) {
+      (void)read(rclcpp::Time(0), period);
+      if (recovery_state_.values[onrobot_gripper_msgs::recovery::Ready] > 0.5) {
         fault_recovery_admission_state_ = 1.0;
+        recovery_state_.accept(sequence);
         faulted_state_ = 0.0;
         fault_code_state_ = 0.0;
+        realtime_active_ = false;
+        active_mode_state_ = 0.0;
+        busy_state_ = 0.0;
+        position_command_ = position_state_;
+        velocity_state_ = 0.0;
+        visual_velocity_state_ = 0.0;
+        conventional_sequence_command_ = nan();
+        force_conventional_command_ = false;
+        realtime_sequence_command_ = nan();
+        recovery_state_.finish(onrobot_gripper_msgs::recovery::Result::Succeeded);
       } else {
         fault_recovery_admission_state_ = 2.0;
       }
     }
     fault_recovery_sequence_command_ = nan();
+    return hardware_interface::return_type::OK;
   }
 
   if (!std::isnan(stop_sequence_command_)) {
@@ -377,6 +432,9 @@ hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
     stop_issued = true;
     stop_sequence_command_ = nan();
   }
+
+  if (faulted_state_ > 0.5 || !recovery_lifecycle_active_)
+    return hardware_interface::return_type::OK;
 
   if (!stop_issued && conventional_sequence_command_ < 0.0 &&
       !std::isfinite(realtime_sequence_command_)) {
@@ -445,7 +503,7 @@ hardware_interface::return_type OnRobotParallelGripperFakeSystem::write(
       const bool stop_command = std::isfinite(realtime_mode_command_) &&
                                 realtime_mode_command_ == -1.0;
       if (is_2fg_ && !stop_command) {
-        const double minimumForce = model_ == "2fg14" ? 40.0 : 30.0;
+        const double minimumForce = model_ == "2fg14" ? 40.0 : 0.0;
         const double maximumForce = model_ == "2fg14" ? 196.0 : 95.0;
         const bool validForce = std::isfinite(realtime_force_command_) &&
             realtime_force_command_ >= minimumForce &&
@@ -581,6 +639,25 @@ void OnRobotParallelGripperFakeSystem::updateDiagnosticStates() {
   setDiagnostic(diagnostic_states_, DiagnosticInterface::SampleSequence,
                 sample_sequence_state_);
   setDiagnostic(diagnostic_states_, DiagnosticInterface::Age, 0.0);
+  if (is_2fg_) {
+    setDiagnostic(diagnostic_states_, DiagnosticInterface::ConventionalPowerValid,
+                  1.0);
+    setDiagnostic(diagnostic_states_, DiagnosticInterface::MaximumForce,
+                  conventional_max_force_n_);
+    setDiagnostic(diagnostic_states_,
+                  DiagnosticInterface::ConventionalVelocityCalibration,
+                  model_ == "2fg7" ? 1.0 : 2.0);
+    setDiagnostic(diagnostic_states_,
+                  DiagnosticInterface::ConventionalVelocityCalibrationValid, 1.0);
+    setDiagnostic(diagnostic_states_,
+                  DiagnosticInterface::ConventionalDefaultForce,
+                  conventional_default_force_n_);
+  } else {
+    setDiagnostic(diagnostic_states_, DiagnosticInterface::ConventionalPowerValid,
+                  0.0);
+    setDiagnostic(diagnostic_states_,
+                  DiagnosticInterface::ConventionalVelocityCalibrationValid, 0.0);
+  }
   if (std::isfinite(realtime_force_command_)) {
     setDiagnostic(diagnostic_states_, DiagnosticInterface::CommandForce,
                   realtime_force_command_);

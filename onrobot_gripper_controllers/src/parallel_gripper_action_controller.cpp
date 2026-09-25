@@ -5,6 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -18,6 +19,16 @@ namespace {
 constexpr char kStopCommandSequence[] = "stop_command_sequence";
 constexpr char kConventionalCommandSequence[] = "conventional_command_sequence";
 constexpr char kConventionalSpeedPercent[] = "conventional_speed_percent";
+constexpr char kModel[] = "model";
+constexpr char kConventionalPowerValid[] = "diagnostic_conventional_power_valid";
+constexpr char kMaximumForce[] = "diagnostic_maximum_force";
+constexpr char kVelocityCalibration[] = "diagnostic_conventional_velocity_calibration";
+constexpr char kVelocityCalibrationValid[] = "diagnostic_conventional_velocity_calibration_valid";
+constexpr char kDefaultForce[] = "diagnostic_conventional_default_force_n";
+constexpr char kDiagnosticAge[] = "diagnostic_age";
+constexpr char kSampleAge[] = "sample_age";
+constexpr double kMaximumProcessStateAgeSeconds = 0.5;
+constexpr double kMaximumDiagnosticAgeSeconds = 3.0;
 
 constexpr std::uint64_t kMaximumExactStopToken = 9007199254740991ULL;
 
@@ -25,6 +36,34 @@ bool is_valid_stop_token(const double value) {
   return std::isfinite(value) && value >= 1.0 &&
          value <= static_cast<double>(kMaximumExactStopToken) &&
          std::floor(value) == value;
+}
+
+std::optional<onrobot::Model> model_from_name(const std::string_view name) {
+  if (name == "2fg7") return onrobot::Model::TwoFG7;
+  if (name == "2fg14") return onrobot::Model::TwoFG14;
+  return std::nullopt;
+}
+
+std::optional<double> state_value(
+    const std::vector<hardware_interface::LoanedStateInterface> &interfaces,
+    const std::string &joint, const std::string_view name) {
+  for (const auto &interface : interfaces) {
+    if (interface.get_prefix_name() == joint &&
+        interface.get_interface_name() == name) {
+      return interface.get_optional<double>();
+    }
+  }
+  return std::nullopt;
+}
+
+bool has_state_interface(
+    const std::vector<hardware_interface::LoanedStateInterface> &interfaces,
+    const std::string &joint, const std::string_view name) {
+  return std::any_of(interfaces.begin(), interfaces.end(),
+                     [&](const auto &interface) {
+                       return interface.get_prefix_name() == joint &&
+                              interface.get_interface_name() == name;
+                     });
 }
 
 #ifdef ONROBOT_GRIPPER_CONTROLLERS_TESTING
@@ -58,6 +97,7 @@ controller_interface::CallbackReturn ParallelGripperActionController::on_init() 
     auto node = get_node();
     node->declare_parameter<bool>("conventional_speed_control", false);
     node->declare_parameter<int>(kConventionalSpeedPercent, 50);
+    node->declare_parameter<std::string>(kModel, "");
   } catch (const std::exception &error) {
     RCLCPP_ERROR(get_node()->get_logger(),
                  "Conventional speed controller initialization failed: %s",
@@ -76,6 +116,25 @@ ParallelGripperActionController::on_configure(
   auto node = get_node();
   conventional_speed_control_enabled_ =
       node->get_parameter("conventional_speed_control").as_bool();
+  conventional_velocity_model_.reset();
+  if (conventional_speed_control_enabled_) {
+    conventional_velocity_model_ = model_from_name(
+        node->get_parameter(kModel).as_string());
+    const auto hasOpeningFit = [this](onrobot::ConventionalVelocityCalibration calibration) {
+      return onrobot::findConventionalVelocityProfile(
+                 conventional_velocity_model_.value(), calibration,
+                 onrobot::ConventionalVelocityDirection::Opening) != nullptr;
+    };
+    if (!conventional_velocity_model_.has_value() ||
+        (!hasOpeningFit(onrobot::ConventionalVelocityCalibration::A) &&
+         !hasOpeningFit(onrobot::ConventionalVelocityCalibration::B))) {
+      RCLCPP_ERROR(
+          node->get_logger(),
+          "A supported 2FG model (2fg7 or 2fg14) is required when "
+          "conventional_speed_control is enabled");
+      return controller_interface::CallbackReturn::ERROR;
+    }
+  }
   const auto configured_speed_percent =
       node->get_parameter(kConventionalSpeedPercent).as_int();
   if (conventional_speed_control_enabled_ &&
@@ -113,6 +172,20 @@ ParallelGripperActionController::command_interface_configuration() const {
                                  kConventionalCommandSequence);
   if (conventional_speed_control_enabled_) {
     configuration.names.push_back(params_.joint + "/" + kConventionalSpeedPercent);
+  }
+  return configuration;
+}
+
+controller_interface::InterfaceConfiguration
+ParallelGripperActionController::state_interface_configuration() const {
+  auto configuration = parallel_gripper_action_controller::
+      GripperActionController::state_interface_configuration();
+  if (conventional_speed_control_enabled_) {
+    for (const auto name : {kConventionalPowerValid, kMaximumForce,
+                            kVelocityCalibration, kVelocityCalibrationValid, kDefaultForce,
+                            kDiagnosticAge, kSampleAge}) {
+      configuration.names.push_back(params_.joint + "/" + name);
+    }
   }
   return configuration;
 }
@@ -168,7 +241,16 @@ controller_interface::return_type ParallelGripperActionController::update(
     // Publish the target and effort before the event, in the manager update
     // thread. An executor callback must never identify last cycle's values
     // as a new goal if update() yields its lifecycle lock.
-    if (!joint_effort_command_interface_->get().set_value(
+    if (pending_conventional_velocity_snapshot_ &&
+        !conventional_velocity_snapshot_is_current(
+            *pending_conventional_velocity_snapshot_,
+            command_struct_.position_cmd_, command_struct_.effort_cmd_)) {
+      RCLCPP_ERROR(
+          get_node()->get_logger(),
+          "Conventional SI-velocity goal rejected before dispatch: force, "
+          "calibration profile, aperture direction, or state freshness changed");
+      abort_motion();
+    } else if (!joint_effort_command_interface_->get().set_value(
             command_struct_.effort_cmd_) ||
         !joint_position_command_interface_->get().set_value(
             command_struct_.position_cmd_) ||
@@ -191,6 +273,7 @@ controller_interface::return_type ParallelGripperActionController::update(
     // this handshake, including a goal at the already-measured position.
     if (event && std::isnan(*event)) {
       admission_pending_ = false;
+      pending_conventional_velocity_snapshot_.reset();
       last_movement_time_ = get_node()->now();
     } else {
       admission_ready = false;
@@ -239,6 +322,20 @@ ParallelGripperActionController::on_activate(
   action_server_ = retained_server;
   if (result != controller_interface::CallbackReturn::SUCCESS) {
     return result;
+  }
+
+  if (conventional_speed_control_enabled_) {
+    for (const auto name : {kConventionalPowerValid, kMaximumForce,
+                            kVelocityCalibration, kVelocityCalibrationValid, kDefaultForce,
+                            kDiagnosticAge, kSampleAge}) {
+      if (!has_state_interface(state_interfaces_, params_.joint, name)) {
+        RCLCPP_ERROR(
+            get_node()->get_logger(),
+            "SI conventional velocity requires state interface %s/%s",
+            params_.joint.c_str(), name);
+        return controller_interface::CallbackReturn::ERROR;
+      }
+    }
   }
 
   // Jazzy's upstream binder recognizes only set_gripper_max_effort, although
@@ -312,6 +409,7 @@ ParallelGripperActionController::on_activate(
   stop_requested_.store(false, std::memory_order_release);
   retire_output_pending_ = false;
   accepted_goal_speed_percent_.clear();
+  pending_conventional_velocity_snapshot_.reset();
   // Preserve a valid event marker left by a previous controller until the next
   // hardware write consumes it. This matters when controller switching
   // deactivates and reactivates controllers in one manager cycle.
@@ -386,6 +484,7 @@ ParallelGripperActionController::on_deactivate(
   conventional_command_interface_ = std::nullopt;
   conventional_speed_interface_ = std::nullopt;
   accepted_goal_speed_percent_.clear();
+  pending_conventional_velocity_snapshot_.reset();
   joint_effort_command_interface_.reset();
   joint_speed_command_interface_.reset();
   return parallel_gripper_action_controller::GripperActionController::
@@ -413,6 +512,7 @@ ParallelGripperActionController::on_cleanup(
   stop_command_interface_ = std::nullopt;
   conventional_command_interface_ = std::nullopt;
   conventional_speed_interface_ = std::nullopt;
+  conventional_velocity_model_.reset();
   accepted_goal_speed_percent_.clear();
   speed_parameter_post_callback_.reset();
   speed_parameter_callback_.reset();
@@ -440,19 +540,86 @@ rclcpp_action::GoalResponse ParallelGripperActionController::goal_with_lifecycle
                 "Rejecting malformed gripper position/effort goal");
     return rclcpp_action::GoalResponse::REJECT;
   }
-  // The standard action permits an optional per-goal velocity array. Neither
-  // conventional device protocol provides an equivalent SI task-velocity
-  // command: 2FG conventional speed is a device percentage and RG's
-  // realtime velocity is an angular mechanism coordinate. Accepting the
-  // field would therefore acknowledge a limit that the hardware cannot
-  // enforce. Realtime control remains the explicit velocity interface.
-  if (!goal_handle->command.velocity.empty()) {
+  if (goal_handle->command.velocity.size() > 1 ||
+      (!goal_handle->command.velocity.empty() &&
+       (!std::isfinite(goal_handle->command.velocity[0]) ||
+        goal_handle->command.velocity[0] <= 0.0))) {
     RCLCPP_WARN(
         get_node()->get_logger(),
         "Rejecting ParallelGripperCommand goal with command.velocity: "
-        "per-goal conventional velocity is unsupported; use the realtime "
-        "controller for velocity control");
+        "expected one finite positive value in m/s, or an empty array");
     return rclcpp_action::GoalResponse::REJECT;
+  }
+  if (!goal_handle->command.velocity.empty() &&
+      !conventional_speed_control_enabled_) {
+    RCLCPP_WARN(
+        get_node()->get_logger(),
+        "Rejecting ParallelGripperCommand goal with command.velocity: "
+        "SI velocity conversion is available only for 2FG conventional "
+        "controllers");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+  GoalSpeedReservation reservation;
+  std::optional<double> clamped_minimum_speed_m_s;
+  reservation.speed_percent =
+      conventional_speed_percent_.load(std::memory_order_acquire);
+  if (!goal_handle->command.velocity.empty() &&
+      goal_handle->command.velocity[0] > 0.0) {
+    const auto measured_position =
+        joint_position_state_interface_->get().get_optional<double>();
+    if (!measured_position.has_value() || !std::isfinite(*measured_position)) {
+      RCLCPP_WARN(get_node()->get_logger(),
+                  "Rejecting velocity goal because measured aperture is unavailable");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+    // A maximum aperture speed is independent of direction or travel distance.
+    const auto direction = onrobot::ConventionalVelocityDirection::Fastest;
+    double maximum_force_n = 0.0;
+    double default_force_n = 0.0;
+    onrobot::ConventionalVelocityCalibration velocity_calibration{};
+    if (!read_conventional_velocity_context(
+            maximum_force_n, default_force_n, velocity_calibration)) {
+      RCLCPP_WARN(
+          get_node()->get_logger(),
+          "Rejecting SI velocity goal: current 2FG force/calibration context is "
+          "missing, stale, unsupported, or invalid");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+    const double command_effort_n = goal_handle->command.effort.empty()
+                                        ? params_.max_effort
+                                        : goal_handle->command.effort[0];
+    const double effective_force_n = command_effort_n > 0.0
+                                         ? command_effort_n
+                                         : default_force_n;
+    const auto converted = onrobot::conventionalSpeedPercentForVelocity(
+        conventional_velocity_model_.value(), velocity_calibration, direction,
+        effective_force_n, maximum_force_n,
+        std::min(goal_handle->command.velocity[0],
+                 std::numeric_limits<double>::max() / 1000.0) * 1000.0);
+    if (!converted.has_value()) {
+      RCLCPP_WARN(
+          get_node()->get_logger(),
+          "Rejecting SI velocity goal: effective force, live force ceiling, "
+          "or calibrated calibration/direction profile is unsupported");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+    const auto minimum_speed = onrobot::conventionalVelocityMmS(
+        conventional_velocity_model_.value(), velocity_calibration, direction,
+        effective_force_n, maximum_force_n, 1.0);
+    if (*converted == 1 && minimum_speed &&
+        goal_handle->command.velocity[0] * 1000.0 + 1e-9 < *minimum_speed) {
+      clamped_minimum_speed_m_s = *minimum_speed / 1000.0;
+    }
+    reservation.speed_percent = static_cast<int>(converted.value());
+    reservation.si_velocity = ConventionalVelocitySnapshot{
+        velocity_calibration,
+        direction,
+        goal_handle->command.velocity[0],
+        effective_force_n,
+        command_effort_n,
+        maximum_force_n,
+        default_force_n,
+        reservation.speed_percent};
   }
   const auto response = goal_callback(uuid, std::move(goal_handle));
   if (response == rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE ||
@@ -460,8 +627,16 @@ rclcpp_action::GoalResponse ParallelGripperActionController::goal_with_lifecycle
     // The action server returns the response before it invokes the accepted
     // callback. Keep the selected percentage with this exact action UUID,
     // rather than sampling the mutable controller parameter later.
-    accepted_goal_speed_percent_[uuid] =
-        conventional_speed_percent_.load(std::memory_order_acquire);
+    accepted_goal_speed_percent_[uuid] = reservation;
+    if (clamped_minimum_speed_m_s) {
+      RCLCPP_WARN(
+          get_node()->get_logger(),
+          "Clamping SI velocity %.6f m/s to native 1%% for %.1f N: "
+          "minimum estimated speed %.6f m/s may exceed the requested velocity",
+          reservation.si_velocity->requested_velocity_m_s,
+          reservation.si_velocity->effective_force_n,
+          *clamped_minimum_speed_m_s);
+    }
 #ifdef ONROBOT_GRIPPER_CONTROLLERS_TESTING
     invoke_goal_reservation_hook();
 #endif
@@ -486,6 +661,7 @@ ParallelGripperActionController::cancel_with_stop(
     has_command_ = false;
     dispatch_pending_ = false;
     admission_pending_ = false;
+    pending_conventional_velocity_snapshot_.reset();
     retire_output_pending_ = true;
     if (!stop_written) {
       // Do not acknowledge a cancel whose Stop was not handed off. Fail the
@@ -524,7 +700,7 @@ void ParallelGripperActionController::accept_with_preemption_stop(
     goal_handle->abort(invalid_feedback_result_);
     return;
   }
-  const int speed_snapshot = speed->second;
+  const auto reservation = speed->second;
   accepted_goal_speed_percent_.erase(speed);
   if (!action_callbacks_enabled_ || !feedback_is_finite()) {
     auto result = std::make_shared<GripperCommandAction::Result>();
@@ -544,6 +720,7 @@ void ParallelGripperActionController::accept_with_preemption_stop(
       has_command_ = false;
       dispatch_pending_ = false;
       admission_pending_ = false;
+      pending_conventional_velocity_snapshot_.reset();
       retire_output_pending_ = true;
       active_goal->setAborted(invalid_feedback_result_);
       retiring_goal_ = active_goal;
@@ -556,7 +733,8 @@ void ParallelGripperActionController::accept_with_preemption_stop(
   }
   accepted_callback(std::move(goal_handle));
   has_command_ = true;
-  pending_conventional_speed_percent_ = speed_snapshot;
+  pending_conventional_speed_percent_ = reservation.speed_percent;
+  pending_conventional_velocity_snapshot_ = reservation.si_velocity;
   invalid_feedback_latched_ = false;
   dispatch_pending_ = true;
   admission_pending_ = false;
@@ -589,6 +767,10 @@ ParallelGripperActionController::set_speed_parameters(
   }
   bool change_requested = false;
   for (const auto &parameter : parameters) {
+    if (parameter.get_name() == kModel) {
+      result.reason = "model is fixed at controller configuration";
+      return result;
+    }
     if (parameter.get_name() == "conventional_speed_control") {
       result.reason =
           "conventional_speed_control is fixed at controller configuration";
@@ -658,6 +840,7 @@ void ParallelGripperActionController::clear_conventional_command_event() {
 void ParallelGripperActionController::abort_motion() {
   invalid_feedback_latched_ = true;
   has_command_ = false;
+  pending_conventional_velocity_snapshot_.reset();
   const auto event =
       conventional_command_interface_
           ? conventional_command_interface_->get().get_optional<double>()
@@ -707,6 +890,106 @@ bool ParallelGripperActionController::feedback_is_finite() const {
   const auto position = joint_position_state_interface_->get().get_optional<double>();
   const auto velocity = joint_velocity_state_interface_->get().get_optional<double>();
   return position && velocity && std::isfinite(*position) && std::isfinite(*velocity);
+}
+
+bool ParallelGripperActionController::read_conventional_velocity_context(
+    double &maximum_force_n, double &default_force_n,
+    onrobot::ConventionalVelocityCalibration &velocity_calibration) const {
+  if (!conventional_speed_control_enabled_ || !conventional_velocity_model_) {
+    return false;
+  }
+  const auto power_valid = state_value(state_interfaces_, params_.joint,
+                                       kConventionalPowerValid);
+  const auto maximum_force =
+      state_value(state_interfaces_, params_.joint, kMaximumForce);
+  const auto profile_value =
+      state_value(state_interfaces_, params_.joint, kVelocityCalibration);
+  const auto profile_valid =
+      state_value(state_interfaces_, params_.joint, kVelocityCalibrationValid);
+  const auto configured_default =
+      state_value(state_interfaces_, params_.joint, kDefaultForce);
+  const auto diagnostic_age =
+      state_value(state_interfaces_, params_.joint, kDiagnosticAge);
+  const auto sample_age =
+      state_value(state_interfaces_, params_.joint, kSampleAge);
+  if (!power_valid || !maximum_force || !profile_value || !profile_valid ||
+      !configured_default || !diagnostic_age || !sample_age ||
+      !std::isfinite(*power_valid) || *power_valid < 0.5 ||
+      !std::isfinite(*maximum_force) || *maximum_force <= 0.0 ||
+      !std::isfinite(*profile_value) ||
+      !std::isfinite(*profile_valid) || *profile_valid < 0.5 ||
+      !std::isfinite(*configured_default) || *configured_default <= 0.0 ||
+      !std::isfinite(*diagnostic_age) || *diagnostic_age < 0.0 ||
+      *diagnostic_age > kMaximumDiagnosticAgeSeconds ||
+      !std::isfinite(*sample_age) || *sample_age < 0.0 ||
+      *sample_age > kMaximumProcessStateAgeSeconds) {
+    return false;
+  }
+
+  if (*profile_value == static_cast<double>(
+                           onrobot::ConventionalVelocityCalibration::A)) {
+    velocity_calibration = onrobot::ConventionalVelocityCalibration::A;
+  } else if (*profile_value == static_cast<double>(
+                                  onrobot::ConventionalVelocityCalibration::B)) {
+    velocity_calibration = onrobot::ConventionalVelocityCalibration::B;
+  } else {
+    return false;
+  }
+  const auto minimum_force =
+      onrobot::minimumConventionalForceN(*conventional_velocity_model_);
+  if (*configured_default < minimum_force ||
+      *configured_default > *maximum_force) {
+    return false;
+  }
+  maximum_force_n = *maximum_force;
+  default_force_n = *configured_default;
+  return true;
+}
+
+bool ParallelGripperActionController::
+conventional_velocity_snapshot_is_current(
+    const ConventionalVelocitySnapshot &snapshot,
+    double target_position_m, double command_effort_n) const {
+  if (!std::isfinite(target_position_m) ||
+      !std::isfinite(command_effort_n)) {
+    return false;
+  }
+  constexpr double tolerance = 1.0e-6;
+  if (std::abs(command_effort_n - snapshot.command_effort_n) > tolerance) {
+    return false;
+  }
+  double maximum_force_n = 0.0;
+  double default_force_n = 0.0;
+  onrobot::ConventionalVelocityCalibration velocity_calibration{};
+  if (!read_conventional_velocity_context(
+          maximum_force_n, default_force_n, velocity_calibration) ||
+      velocity_calibration != snapshot.velocity_calibration ||
+      std::abs(maximum_force_n - snapshot.live_maximum_force_n) > tolerance ||
+      std::abs(default_force_n - snapshot.default_force_n) > tolerance) {
+    return false;
+  }
+  const auto measured_position =
+      joint_position_state_interface_->get().get_optional<double>();
+  if (!measured_position || !std::isfinite(*measured_position)) {
+    return false;
+  }
+  const auto direction = onrobot::ConventionalVelocityDirection::Fastest;
+  if (direction != snapshot.direction) {
+    return false;
+  }
+  const double effective_force_n =
+      command_effort_n > 0.0 ? command_effort_n : default_force_n;
+  if (std::abs(effective_force_n - snapshot.effective_force_n) > tolerance ||
+      effective_force_n > maximum_force_n) {
+    return false;
+  }
+  const auto converted = onrobot::conventionalSpeedPercentForVelocity(
+      conventional_velocity_model_.value(), velocity_calibration, direction,
+      effective_force_n, maximum_force_n,
+      std::min(snapshot.requested_velocity_m_s,
+               std::numeric_limits<double>::max() / 1000.0) * 1000.0);
+  return converted.has_value() &&
+         static_cast<int>(converted.value()) == snapshot.selected_speed_percent;
 }
 
 bool ParallelGripperActionController::set_hold_position_if_valid() {

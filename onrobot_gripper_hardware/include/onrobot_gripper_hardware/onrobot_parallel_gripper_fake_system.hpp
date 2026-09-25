@@ -1,4 +1,5 @@
 #pragma once
+#include <onrobot_gripper_msgs/fault_recovery_protocol.hpp>
 
 #include "onrobot_gripper_hardware/command_stop_gate.hpp"
 
@@ -36,12 +37,16 @@ public:
   on_export_command_interfaces() override;
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  hardware_interface::CallbackReturn
+  on_deactivate(const rclcpp_lifecycle::State &) override;
   hardware_interface::return_type
   read(const rclcpp::Time &, const rclcpp::Duration &) override;
   hardware_interface::return_type
   write(const rclcpp::Time &, const rclcpp::Duration &period) override;
 
 private:
+  onrobot_gripper_msgs::recovery::State recovery_state_;
+  bool recovery_lifecycle_active_{false};
   CommandStopGate command_stop_gate_;
   bool hasState(const hardware_interface::ComponentInfo &joint,
                 const std::string &name) const;
@@ -63,6 +68,7 @@ private:
   double geometry_aperture_at_zero_m_{0.0};
   double conventional_min_force_n_{0.0};
   double conventional_max_force_n_{0.0};
+  double conventional_default_force_n_{0.0};
   double fake_motion_speed_m_s_{0.0};
   bool fake_stall_{false};
   std::unique_ptr<RgCadKinematics> rg_kinematics_;

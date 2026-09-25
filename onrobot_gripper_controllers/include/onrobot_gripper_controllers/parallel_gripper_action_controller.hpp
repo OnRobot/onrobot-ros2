@@ -14,6 +14,8 @@
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
 #include <rclcpp/node_interfaces/node_parameters_interface.hpp>
 
+#include <onrobot_tool_api/model_capabilities.hpp>
+
 namespace onrobot_gripper_controllers {
 
 /// Standard ParallelGripperCommand controller with an explicit device Stop.
@@ -42,6 +44,8 @@ public:
   on_configure(const rclcpp_lifecycle::State &previous_state) override;
   controller_interface::InterfaceConfiguration
   command_interface_configuration() const override;
+  controller_interface::InterfaceConfiguration
+  state_interface_configuration() const override;
 
   controller_interface::return_type
   update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
@@ -64,6 +68,28 @@ private:
   void accept_with_preemption_stop(std::shared_ptr<GoalHandle> goal_handle);
   bool set_hold_position_if_valid();
   bool feedback_is_finite() const;
+  struct ConventionalVelocitySnapshot {
+    onrobot::ConventionalVelocityCalibration velocity_calibration{
+        onrobot::ConventionalVelocityCalibration::A};
+    onrobot::ConventionalVelocityDirection direction{
+        onrobot::ConventionalVelocityDirection::Opening};
+    double requested_velocity_m_s{0.0};
+    double effective_force_n{0.0};
+    double command_effort_n{0.0};
+    double live_maximum_force_n{0.0};
+    double default_force_n{0.0};
+    int selected_speed_percent{0};
+  };
+  struct GoalSpeedReservation {
+    int speed_percent{50};
+    std::optional<ConventionalVelocitySnapshot> si_velocity;
+  };
+  bool read_conventional_velocity_context(
+      double &maximum_force_n, double &default_force_n,
+      onrobot::ConventionalVelocityCalibration &velocity_calibration) const;
+  bool conventional_velocity_snapshot_is_current(
+      const ConventionalVelocitySnapshot &snapshot,
+      double target_position_m, double command_effort_n) const;
   bool conventional_motion_busy();
   rcl_interfaces::msg::SetParametersResult
   set_speed_parameters(const std::vector<rclcpp::Parameter> &parameters);
@@ -86,6 +112,7 @@ private:
   std::optional<
       std::reference_wrapper<hardware_interface::LoanedCommandInterface>>
       conventional_speed_interface_;
+  std::optional<onrobot::Model> conventional_velocity_model_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
       speed_parameter_callback_;
   rclcpp::node_interfaces::PostSetParametersCallbackHandle::SharedPtr
@@ -101,9 +128,13 @@ private:
   std::atomic<int> conventional_speed_percent_{50};
   int pending_conventional_speed_percent_{50};
   // A goal response and its accepted callback are separate action-server
-  // callbacks. Reserve the selected speed by UUID at response time so a
-  // concurrent parameter request cannot alter an already accepted goal.
-  std::map<rclcpp_action::GoalUUID, int> accepted_goal_speed_percent_;
+  // callbacks. Reserve the selected native percentage and the force/calibration
+  // context by UUID so a concurrent parameter request or state change cannot
+  // silently alter an accepted SI-speed goal.
+  std::map<rclcpp_action::GoalUUID, GoalSpeedReservation>
+      accepted_goal_speed_percent_;
+  std::optional<ConventionalVelocitySnapshot>
+      pending_conventional_velocity_snapshot_;
   std::chrono::steady_clock::time_point admission_started_{};
   const GripperCommandAction::Result::SharedPtr invalid_feedback_result_{
       std::make_shared<GripperCommandAction::Result>()};
