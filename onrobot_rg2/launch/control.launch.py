@@ -213,11 +213,11 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_sim_time', default_value='false',
             description='Use the clock published by a simulation backend'),
+        DeclareLaunchArgument('namespace', default_value=''),
         DeclareLaunchArgument(
             'controller_manager', default_value=PathJoinSubstitution([
                 '/', LaunchConfiguration('namespace'), 'controller_manager']),
             description='Controller-manager service name for spawners'),
-        DeclareLaunchArgument('namespace', default_value=''),
         Node(package='robot_state_publisher',
              executable='robot_state_publisher',
              output='screen', parameters=[{
