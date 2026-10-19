@@ -20,33 +20,65 @@ namespace onrobot_gripper_controllers {
 
 class RealtimeControllerTestAccess;
 
-/// @brief Resource-claimed realtime controller for 2FG and RG grippers.
+/// @brief Realtime controller for 2FG and RG grippers with exclusive command access.
 ///
-/// The controller claims the conventional position/effort resources together
-/// with all realtime command interfaces, so a conventional action controller
-/// and realtime stream cannot own the same gripper concurrently. Device I/O
-/// remains exclusively in ParallelGripperSession below the hardware plugin.
+/// The controller claims position, effort and all realtime command interfaces.
+/// This prevents the conventional and realtime controllers from commanding the
+/// same gripper at the same time. For physical grippers, ParallelGripperSession
+/// handles device communication through the hardware plugin.
 class OnRobotRealtimeController final
     : public controller_interface::ControllerInterface {
 public:
+  /// @brief Claim the motion and realtime interfaces on the task joint.
+  ///
+  /// Claims position and effort as well, so the conventional controller cannot
+  /// command the same gripper at the same time. The velocity interface depends
+  /// on coordinate_profile.
   controller_interface::InterfaceConfiguration
   command_interface_configuration() const override;
+  /// @brief Request task and mechanism feedback, validity and health state.
+  ///
+  /// Includes the command sequences needed to report device acknowledgement.
+  /// Mechanism feedback is linear for 2FG and angular for RG.
   controller_interface::InterfaceConfiguration
   state_interface_configuration() const override;
+  /// @brief Declare joint, coordinate, timeout and publication settings.
+  ///
+  /// command_timeout_ms is in milliseconds; state_publish_rate_hz is in Hz.
+  /// Returns ERROR if parameter declaration fails.
   controller_interface::CallbackReturn on_init() override;
+  /// @brief Validate settings and create command, Stop and state ROS
+  /// interfaces.
+  ///
+  /// Clears earlier command state. Returns ERROR for invalid joint names,
+  /// coordinate_profile, timeout or publication rate.
   controller_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &) override;
+  /// @brief Discard earlier motion commands and schedule a startup Stop.
+  ///
+  /// The first update establishes the controller clock and writes Stop before
+  /// new motion commands can be accepted.
   controller_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Reject further motion commands and write Stop to hardware.
+  ///
+  /// Returns ERROR if Stop cannot be written. SUCCESS means the command was
+  /// passed to the hardware interface; it does not prove that motion has stopped.
   controller_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Apply current commands, request Stop when needed and publish state.
+  ///
+  /// The supplied time must use the ROS clock of the command stamps. Expired
+  /// commands or a clock jump backwards request Stop. Returns ERROR if a
+  /// required command-interface write fails.
   controller_interface::return_type update(const rclcpp::Time &,
                                            const rclcpp::Duration &) override;
 
+  /// @cond INTERNAL
 private:
   friend class RealtimeControllerTestAccess;
   struct PendingCommand {
-    // Keep the RT handoff allocation-free.  In particular, do not carry the
+    // Copy commands into the realtime loop without allocating memory. Do not copy the
     // ROS header's frame_id string into the control loop.
     uint8_t mode{onrobot_gripper_msgs::msg::RealtimeCommand::STOP};
     double task_position{0.0};
@@ -80,8 +112,9 @@ private:
   std::atomic<uint64_t> m_epoch{0};
   std::atomic<bool> m_acceptMotion{false};
   std::atomic<int64_t> m_sourceBoundaryNs{0};
-  // A Stop is never coalesced into the motion box.  The sequence is stored
-  // last with release semantics, so update observes the complete fence.
+  // Store Stop separately from motion so a newer target cannot overwrite it.
+  // Store its sequence last, with release semantics, so update sees all of
+  // the Stop data before processing the request.
   std::atomic<uint64_t> m_stopFenceSequence{0};
   std::atomic<uint64_t> m_stopFenceEpoch{0};
   std::mutex m_inputMutex;
@@ -101,6 +134,7 @@ private:
       onrobot_gripper_msgs::msg::RealtimeState>>
       m_statePublisher;
   rclcpp::Time m_lastStatePublish;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_controllers

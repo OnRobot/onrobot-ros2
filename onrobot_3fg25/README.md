@@ -1,7 +1,7 @@
 # OnRobot 3FG25 ROS 2 description
 
 URDF/Xacro, meshes, and native external-diameter control for the
-OnRobot 3FG25. The ROS control path is available for evaluation only.
+OnRobot 3FG25. The ROS control is available for evaluation only.
 
 To connect to a gripper and use the RViz Open/Close controls, follow the
 workspace Getting Started guide or run:
@@ -34,5 +34,4 @@ are limited by live device state, and the showcase does not provide adjustable
 gripping force.
 
 The fingertips contain Gazebo contact parameters. These are simulation inputs,
-not guaranteed gripping-performance values; users should tune them for their
-payload, surface condition, and simulator.
+not guaranteed gripping-performance values; check and adjust them for your payload, surface condition, and simulator.

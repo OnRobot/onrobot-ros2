@@ -13,23 +13,167 @@ from isaac_model_contract import default_asset
 from isaac_model_contract import driven_joint
 from isaac_model_contract import load_contract
 from isaac_model_contract import SUPPORTED_MODELS
+from isaac_model_contract import validate_composed_interface
 
+from isaac_runtime_compat import configure_standalone_physics
+from isaac_runtime_compat import configure_standalone_view
 from isaac_runtime_compat import enable_extension
 from isaac_runtime_compat import is_stage_loading
 from isaac_runtime_compat import play
+from isaac_runtime_compat import set_position_target
 from isaac_runtime_compat import setup_simulation
 from isaac_runtime_compat import stop
-
-from isaacsim import SimulationApp
-
 
 def _topic(namespace: str, name: str) -> str:
     namespace = namespace.strip('/')
     return f'{namespace}/{name}' if namespace else name
 
 
+class JointCommands:
+    """Apply one driven joint's ROS targets with a wall-time velocity watchdog."""
+
+    def __init__(self, driven_index, joint_name, command_timeout):
+        self.driven_index = driven_index
+        self.joint_name = joint_name
+        self.command_timeout = command_timeout
+        self.pending = None
+        self.last_velocity_command = None
+        self.active_mode = None
+
+    def receive(self, message):
+        try:
+            index = message.name.index(self.joint_name)
+        except ValueError:
+            return
+        position = message.position[index] if index < len(message.position) else math.nan
+        velocity = message.velocity[index] if index < len(message.velocity) else math.nan
+        if math.isfinite(position):
+            self.pending = ('position', position)
+            self.last_velocity_command = None
+        elif math.isfinite(velocity):
+            self.pending = ('velocity', velocity)
+            self.last_velocity_command = time.monotonic()
+
+    def update(self, articulation):
+        indices = [self.driven_index]
+        if self.pending is not None:
+            mode, target = self.pending
+            self.pending = None
+            if mode != self.active_mode:
+                articulation.switch_dof_control_mode(mode, dof_indices=indices)
+                self.active_mode = mode
+            if mode == 'position':
+                set_position_target(articulation, target, dof_indices=indices)
+            else:
+                articulation.set_dof_velocity_targets(target, dof_indices=indices)
+        if (self.active_mode == 'velocity' and
+                self.last_velocity_command is not None and
+                time.monotonic() - self.last_velocity_command > self.command_timeout):
+            positions = articulation.get_dof_positions(dof_indices=indices)
+            hold = float(positions.numpy()[0, 0])
+            if not math.isfinite(hold):
+                raise RuntimeError('Cannot hold an invalid simulated joint position')
+            articulation.switch_dof_control_mode('position', dof_indices=indices)
+            set_position_target(articulation, hold, dof_indices=indices)
+            self.active_mode = 'position'
+            self.last_velocity_command = None
+
+
+def create_ros_graph(root_path, state_topic, clock_topic='clock'):
+    """Publish measured physical joints and the global simulation clock."""
+    import omni.graph.core as og
+    import usdrt.Sdf
+
+    og.Controller.edit(
+        {'graph_path': '/OnRobotROSBridge',
+         'evaluator_name': 'execution'},
+        {
+            og.Controller.Keys.CREATE_NODES: [
+                ('OnPlaybackTick', 'omni.graph.action.OnPlaybackTick'),
+                (
+                    'ReadSimTime',
+                    'isaacsim.core.nodes.IsaacReadSimulationTime',
+                ),
+                (
+                    'ReadJointState',
+                    'isaacsim.sensors.physics.IsaacReadJointState',
+                ),
+                ('Context', 'isaacsim.ros2.bridge.ROS2Context'),
+                (
+                    'PublishJointState',
+                    'isaacsim.ros2.bridge.ROS2PublishJointState',
+                ),
+                (
+                    'PublishClock',
+                    'isaacsim.ros2.bridge.ROS2PublishClock',
+                ),
+            ],
+            og.Controller.Keys.CONNECT: [
+                (
+                    'OnPlaybackTick.outputs:tick',
+                    'ReadJointState.inputs:execIn',
+                ),
+                (
+                    'ReadJointState.outputs:execOut',
+                    'PublishJointState.inputs:execIn',
+                ),
+                (
+                    'ReadJointState.outputs:jointNames',
+                    'PublishJointState.inputs:jointNames',
+                ),
+                (
+                    'ReadJointState.outputs:jointPositions',
+                    'PublishJointState.inputs:jointPositions',
+                ),
+                (
+                    'ReadJointState.outputs:jointVelocities',
+                    'PublishJointState.inputs:jointVelocities',
+                ),
+                (
+                    'ReadJointState.outputs:jointEfforts',
+                    'PublishJointState.inputs:jointEfforts',
+                ),
+                (
+                    'ReadJointState.outputs:jointDofTypes',
+                    'PublishJointState.inputs:jointDofTypes',
+                ),
+                (
+                    'ReadJointState.outputs:stageMetersPerUnit',
+                    'PublishJointState.inputs:stageMetersPerUnit',
+                ),
+                (
+                    'ReadJointState.outputs:sensorTime',
+                    'PublishJointState.inputs:sensorTime',
+                ),
+                (
+                    'OnPlaybackTick.outputs:tick',
+                    'PublishClock.inputs:execIn',
+                ),
+                (
+                    'Context.outputs:context',
+                    'PublishJointState.inputs:context',
+                ),
+                ('Context.outputs:context', 'PublishClock.inputs:context'),
+                (
+                    'ReadSimTime.outputs:simulationTime',
+                    'PublishClock.inputs:timeStamp',
+                ),
+            ],
+            og.Controller.Keys.SET_VALUES: [
+                (
+                    'ReadJointState.inputs:prim',
+                    [usdrt.Sdf.Path(root_path)],
+                ),
+                ('PublishJointState.inputs:topicName', state_topic),
+                ('PublishClock.inputs:topicName', clock_topic),
+            ],
+        })
+
+
 def main() -> int:
     """Load the asset, create its ROS Action Graph, and run simulation."""
+    from isaacsim import SimulationApp
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model', choices=SUPPORTED_MODELS, required=True)
     parser.add_argument('--asset', type=Path)
@@ -68,10 +212,8 @@ def main() -> int:
             launch_config['renderer'] = 'RaytracedLighting'
         app = SimulationApp(launch_config)
 
-        import omni.graph.core as og
         import omni.usd
         import rclpy
-        import usdrt.Sdf
         from isaacsim.core.experimental.prims import Articulation
         from isaacsim.core.simulation_manager import SimulationManager
         from isaacsim.core.version import get_version
@@ -97,97 +239,21 @@ def main() -> int:
         while is_stage_loading():
             app.update()
 
+        validate_composed_interface(omni.usd.get_context().get_stage(), contract)
+        if args.gui:
+            configure_standalone_view(
+                omni.usd.get_context().get_stage(),
+                '/' + contract['usd']['default_prim'].lstrip('/'))
+
         state_topic = _topic(args.namespace, 'isaac_joint_states')
         command_topic = _topic(args.namespace, 'isaac_joint_commands')
         # ROS simulation time is a graph-wide clock, not an instance-local
         # gripper topic. Namespacing it would leave use_sim_time nodes waiting
         # on /clock while the bridge publishes elsewhere.
         clock_topic = 'clock'
-        og.Controller.edit(
-            {'graph_path': '/OnRobotROSBridge',
-             'evaluator_name': 'execution'},
-            {
-                og.Controller.Keys.CREATE_NODES: [
-                    ('OnPlaybackTick', 'omni.graph.action.OnPlaybackTick'),
-                    (
-                        'ReadSimTime',
-                        'isaacsim.core.nodes.IsaacReadSimulationTime',
-                    ),
-                    (
-                        'ReadJointState',
-                        'isaacsim.sensors.physics.IsaacReadJointState',
-                    ),
-                    ('Context', 'isaacsim.ros2.bridge.ROS2Context'),
-                    (
-                        'PublishJointState',
-                        'isaacsim.ros2.bridge.ROS2PublishJointState',
-                    ),
-                    (
-                        'PublishClock',
-                        'isaacsim.ros2.bridge.ROS2PublishClock',
-                    ),
-                ],
-                og.Controller.Keys.CONNECT: [
-                    (
-                        'OnPlaybackTick.outputs:tick',
-                        'ReadJointState.inputs:execIn',
-                    ),
-                    (
-                        'ReadJointState.outputs:execOut',
-                        'PublishJointState.inputs:execIn',
-                    ),
-                    (
-                        'ReadJointState.outputs:jointNames',
-                        'PublishJointState.inputs:jointNames',
-                    ),
-                    (
-                        'ReadJointState.outputs:jointPositions',
-                        'PublishJointState.inputs:jointPositions',
-                    ),
-                    (
-                        'ReadJointState.outputs:jointVelocities',
-                        'PublishJointState.inputs:jointVelocities',
-                    ),
-                    (
-                        'ReadJointState.outputs:jointEfforts',
-                        'PublishJointState.inputs:jointEfforts',
-                    ),
-                    (
-                        'ReadJointState.outputs:jointDofTypes',
-                        'PublishJointState.inputs:jointDofTypes',
-                    ),
-                    (
-                        'ReadJointState.outputs:stageMetersPerUnit',
-                        'PublishJointState.inputs:stageMetersPerUnit',
-                    ),
-                    (
-                        'ReadJointState.outputs:sensorTime',
-                        'PublishJointState.inputs:sensorTime',
-                    ),
-                    (
-                        'OnPlaybackTick.outputs:tick',
-                        'PublishClock.inputs:execIn',
-                    ),
-                    (
-                        'Context.outputs:context',
-                        'PublishJointState.inputs:context',
-                    ),
-                    ('Context.outputs:context', 'PublishClock.inputs:context'),
-                    (
-                        'ReadSimTime.outputs:simulationTime',
-                        'PublishClock.inputs:timeStamp',
-                    ),
-                ],
-                og.Controller.Keys.SET_VALUES: [
-                    (
-                        'ReadJointState.inputs:prim',
-                        [usdrt.Sdf.Path(root_path)],
-                    ),
-                    ('PublishJointState.inputs:topicName', state_topic),
-                    ('PublishClock.inputs:topicName', clock_topic),
-                ],
-            })
+        create_ros_graph(root_path, state_topic, clock_topic)
 
+        configure_standalone_physics(omni.usd.get_context().get_stage(), args.model)
         setup_simulation(
             SimulationManager, dt=args.physics_dt, device='cpu')
         articulation = Articulation(root_path)
@@ -209,31 +275,9 @@ def main() -> int:
         rclpy.init()
         command_node = rclpy.create_node(
             f'onrobot_{args.model}_isaac_commands')
-        pending_command = None
-        last_velocity_command = None
-        active_control_mode = None
-
-        def receive_command(message):
-            nonlocal pending_command, last_velocity_command
-            try:
-                index = message.name.index(joint_name)
-            except ValueError:
-                return
-            position = (
-                message.position[index]
-                if index < len(message.position) else math.nan)
-            velocity = (
-                message.velocity[index]
-                if index < len(message.velocity) else math.nan)
-            if math.isfinite(position):
-                pending_command = ('position', position)
-                last_velocity_command = None
-            elif math.isfinite(velocity):
-                pending_command = ('velocity', velocity)
-                last_velocity_command = time.monotonic()
-
+        commands = JointCommands(driven_index, joint_name, args.command_timeout)
         command_subscription = command_node.create_subscription(
-            JointState, command_topic, receive_command, 1)
+            JointState, command_topic, commands.receive, 1)
 
         status.update({
             'status': 'ready',
@@ -255,32 +299,7 @@ def main() -> int:
         steps = 0
         while app.is_running():
             rclpy.spin_once(command_node, timeout_sec=0.0)
-            if pending_command is not None:
-                mode, target = pending_command
-                pending_command = None
-                if mode != active_control_mode:
-                    articulation.switch_dof_control_mode(
-                        mode, dof_indices=[driven_index])
-                    active_control_mode = mode
-                if mode == 'position':
-                    articulation.set_dof_position_targets(
-                        target, dof_indices=[driven_index])
-                else:
-                    articulation.set_dof_velocity_targets(
-                        target, dof_indices=[driven_index])
-            if (active_control_mode == 'velocity' and
-                    last_velocity_command is not None and
-                    time.monotonic() - last_velocity_command >
-                    args.command_timeout):
-                positions = articulation.get_dof_positions(
-                    dof_indices=[driven_index])
-                hold_position = float(positions.numpy()[0, 0])
-                articulation.switch_dof_control_mode(
-                    'position', dof_indices=[driven_index])
-                articulation.set_dof_position_targets(
-                    hold_position, dof_indices=[driven_index])
-                active_control_mode = 'position'
-                last_velocity_command = None
+            commands.update(articulation)
             app.update()
             steps += 1
             if args.test_steps and steps >= args.test_steps:

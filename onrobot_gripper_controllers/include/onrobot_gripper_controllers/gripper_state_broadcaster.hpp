@@ -20,24 +20,47 @@ namespace onrobot_gripper_controllers {
 
 class GripperStateBroadcasterTestAccess;
 
-/// Publishes the model-neutral state contract without owning device I/O.
+/// Publishes gripper state and diagnostics using the hardware state interfaces.
 class GripperStateBroadcaster final
     : public controller_interface::ControllerInterface {
 public:
+  /// @brief Return an empty command-interface configuration.
+  ///
+  /// The broadcaster observes state without owning motion commands.
   controller_interface::InterfaceConfiguration
   command_interface_configuration() const override;
+  /// @brief Request the state interfaces for the configured model and joints.
+  ///
+  /// Requests the available interfaces. Missing model fields are reported as
+  /// invalid without preventing activation.
   controller_interface::InterfaceConfiguration
   state_interface_configuration() const override;
+  /// @brief Declare model, joint, profile and publication parameters.
+  ///
+  /// State publish_rate and diagnostic_rate are in Hz.
   controller_interface::CallbackReturn on_init() override;
+  /// @brief Validate settings and create state and diagnostics publishers.
+  ///
+  /// Returns ERROR for invalid model or joint settings, a missing diagnostics
+  /// topic, or publication rates that are not finite and greater than zero.
   controller_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &) override;
+  /// @brief Reset state-publication timing for the next update.
   controller_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Return SUCCESS without removing publishers or the diagnostics
+  /// timer.
   controller_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Read hardware interfaces and publish typed gripper state.
+  ///
+  /// Uses the supplied ROS time for timestamps and applies publish_rate. Skips
+  /// publication if the publisher is busy. Device communication runs in the
+  /// hardware backend.
   controller_interface::return_type update(const rclcpp::Time &,
                                            const rclcpp::Duration &) override;
 
+  /// @cond INTERNAL
 private:
   friend class GripperStateBroadcasterTestAccess;
   struct DiagnosticSnapshot {
@@ -97,6 +120,7 @@ private:
       m_diagnosticPublisher;
   rclcpp::TimerBase::SharedPtr m_diagnosticTimer;
   realtime_tools::RealtimeThreadSafeBox<DiagnosticSnapshot> m_diagnosticBox;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_controllers

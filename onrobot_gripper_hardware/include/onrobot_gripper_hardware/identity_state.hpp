@@ -6,7 +6,7 @@
 
 namespace onrobot_gripper_hardware {
 
-/// Populate freshly reset diagnostic interfaces from a coherent session copy.
+/// Fill reset diagnostic interfaces from one copy of the session identity.
 inline void exportIdentity(
     const onrobot::ParallelGripperIdentity &identity,
     const onrobot::ParallelGripperState &state,

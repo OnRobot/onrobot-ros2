@@ -1,7 +1,7 @@
 # Use OnRobot grippers in Isaac Sim
 
-The separate, non-ROS `onrobot-isaac-sim` repository owns the 2FG7, 2FG14, RG2
-and RG6 USD assets. `onrobot_gripper_isaac` installs its pinned contents and
+The separate, non-ROS `onrobot-isaac-sim` repository contains the 2FG7, 2FG14, RG2
+and RG6 USD assets. `onrobot_gripper_isaac` installs compatible assets and
 provides examples and the ROS bridge. A USD can be loaded without ROS.
 
 | Your task | Start here |
@@ -17,19 +17,19 @@ After building and sourcing the workspace, locate the installed asset:
 ```bash
 export MODEL=2fg7
 export ISAAC_PACKAGE_PREFIX="$(ros2 pkg prefix onrobot_gripper_isaac)"
-export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/$MODEL/onrobot_$MODEL.usda"
+export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_${MODEL}/simready_usd/onrobot_${MODEL}.usda"
 test -f "$ISAAC_ASSET"
 ```
 
-Use Isaac Sim 6.0.1 for the documented assets. The
+Use Isaac Sim 6.1.0 for the documented assets. The
 [asset dependency reference](../onrobot_gripper_isaac/README.md#asset-dependency)
-explains separate checkouts and content matching. Do not maintain a second
+explains separate checkouts, minimum versions and interface compatibility. Do not maintain a second
 editable USD copy in the ROS package.
 
 For `backend:=isaac`, start the bridge before ROS bringup as shown in the first
 simulation guide. A hardware shadow instead subscribes to measured state;
-the existing ROS hardware session stays the sole Modbus owner. Shadowing
-positions does not forward regulated grip force.
+only the existing ROS hardware session connects to the gripper. The shadow
+follows position but does not reproduce the real gripper’s force control.
 
 Drive, contact and solver inputs belong to the simulated scene. Use the supplied
 scene settings and validate your own workpiece; do not infer measured jaw force

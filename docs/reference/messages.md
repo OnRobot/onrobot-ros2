@@ -14,7 +14,7 @@ Identity and timing:
 | `finger_profile_revision` | `string` | Revision | Finger-profile revision |
 | `sample_sequence` | `uint64` | Counter | Physical I/O sample sequence |
 | `received_time` | `builtin_interfaces/Time` | ROS time | Host receive time of the sample |
-| `sample_age` | `builtin_interfaces/Duration` | Duration | Monotonic age at publication |
+| `sample_age` | `builtin_interfaces/Duration` | Duration | Time since the sample arrived, measured with a clock unaffected by system-time changes |
 
 Measurements and validity:
 
@@ -75,11 +75,11 @@ Session, fault, and counters:
 | Field | Type | Unit/values | Requirement |
 |---|---|---|---|
 | `header` | `std_msgs/Header` | ROS time | Motion needs a nonzero, fresh stamp |
-| `mode` | `uint8` | `POSITION=0`, `VELOCITY=1`, `FORCE_POSITION=2`, `FORCE_VELOCITY=3`, `STOP=255` | Selects command semantics |
+| `mode` | `uint8` | `POSITION=0`, `VELOCITY=1`, `FORCE_POSITION=2`, `FORCE_VELOCITY=3`, `STOP=255` | Selects how the command is interpreted |
 | `task_position` | `float64` | m | External task aperture for 2FG and RG |
 | `task_velocity` | `float64` | m/s | 2FG approach limit or signed velocity |
 | `mechanism_angular_velocity` | `float64` | rad/s | RG velocity command |
-| `force` | `float64` | N | Positive closing-force target in every 2FG realtime mode; RG position force limit |
+| `force` | `float64` | N | 2FG closing-force target, subject to the connected model’s force limits; RG position force limit |
 
 All motion modes are streaming interfaces. Refresh commands before the receipt
 timeout. Stop is a one-shot ordered command. Force-position and force-velocity
@@ -87,8 +87,12 @@ modes are supported on compatible real 2FG devices. Check
 `GripperState.realtime_force_control_available`. Fake approach motion does not
 produce contact or measured force; the Isaac joint bridge does not implement
 force regulation. See the [force controls](../../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip)
-for explicit hold and Stop behavior. The 2FG position controls require a
-positive force target; use Open or Center / stop to leave realtime control.
+for explicit hold and Stop behavior. The 2FG panel uses a positive force target. Direct clients can also request
+zero on 2FG7 firmware 1.0.34 and newer: opening ignores force and closing
+uses at least 30 N. Earlier supported 2FG7 firmware requires at least 30 N;
+2FG14 requires at least 40 N. All targets must stay within the live force limit.
+Use **Center / stop** or an explicit `STOP` command to stop motion. Zero force
+is not a Stop command.
 
 ## `RealtimeState`
 
@@ -105,6 +109,6 @@ positive force target; use Open or Center / stop to leave realtime control.
 `FORCE_POSITION=3`, and `FORCE_VELOCITY=4`. Numeric placeholders are not
 measurements unless their corresponding validity flag is true.
 
-For measured-force provenance, signed feedback and cached identity, see the
+For the source of force values, signed feedback and cached identity, see the
 [message package](../../onrobot_gripper_msgs/README.md). The installed definitions
 are also available with `ros2 interface show onrobot_gripper_msgs/msg/GripperState`.

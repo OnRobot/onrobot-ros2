@@ -6,8 +6,10 @@
 
 namespace onrobot_gripper_hardware {
 
-// One report per rejection/Stop-admission transition. Successful motion or
-// lifecycle changes reset it. This avoids per-cycle formatting and log floods.
+/// @cond INTERNAL
+// Report once when the rejection reason or Stop result changes. Reset after a
+// successful motion request or lifecycle change. This avoids formatting and
+// logging the same error every cycle.
 class RealtimeRejection {
 public:
   void reset() { last_.reset(); stop_queued_ = false; }
@@ -53,4 +55,5 @@ private:
   std::optional<unsigned> last_;
   bool stop_queued_{false};
 };
+/// @endcond
 } // namespace onrobot_gripper_hardware

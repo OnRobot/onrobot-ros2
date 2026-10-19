@@ -5,7 +5,7 @@ provide an independent stop. Confirm the model, firmware, physical finger
 mounting and connection. Software Stop and watchdogs are not safety-rated.
 
 1. Complete [installation](installation.md) and the fake-backend check.
-2. Stop other showcases or Modbus clients; one hardware session owns the device.
+2. Stop other showcases or Modbus clients. Use one connection to control the device.
 3. Start the [TCP or RTU showcase](../GETTING_STARTED.md#3-start-the-showcase).
    The Compute Box default is `192.168.1.1:502`. USB examples use `/dev/ttyUSB0`;
    verify the actual adapter and follow the [USB guide](../onrobot_gripper_bringup/doc/USB_RTU.md).
@@ -30,4 +30,4 @@ finger geometry or overwrite finger settings on the device.
 Choose a conservative intermediate target first while observing the tool
 directly. Try the endpoints only after confirming the travel is clear. If motion
 or feedback differs from expectations, stop and investigate before retrying.
-Follow [state and recovery](state-diagnostics-and-recovery.md) for latched faults.
+Follow [state and recovery](state-diagnostics-and-recovery.md) if a fault remains active.

@@ -24,16 +24,16 @@ class QWidget;
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// RViz operator panel for the native three-finger diameter controller.
+/// RViz controls for 3FG grip diameter.
 ///
-/// The panel intentionally does not use ParallelGripperCommand: 3FG tools
-/// are coupled three-finger mechanisms. It publishes the external grip
-/// diameter, in metres, to forward_command_controller and only observes the
-/// state published by ros2_control.
+/// Commands the external grip diameter in metres through
+/// forward_command_controller and displays state from ros2_control. The three
+/// fingers move together, using diameter commands instead of ParallelGripperCommand.
 class ThreeFingerControlPanel final : public rviz_common::Panel {
   Q_OBJECT
 
 public:
+  /// @cond INTERNAL
   explicit ThreeFingerControlPanel(QWidget *parent = nullptr);
   ~ThreeFingerControlPanel() override;
 
@@ -97,6 +97,7 @@ private:
   QLabel *force_label_{nullptr};
   QLabel *status_label_{nullptr};
   std::vector<QWidget *> command_widgets_;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_rviz_plugins

@@ -1,6 +1,6 @@
 # Supported devices and backends
 
-The main platform is Ubuntu 24.04 amd64, ROS 2 Jazzy and Isaac Sim 6.0.1.
+The main platform is Ubuntu 24.04 amd64, ROS 2 Jazzy and Isaac Sim 6.1.0.
 
 | Models | Conventional coordinate | Realtime | Available showcase backends |
 |---|---|---|---|

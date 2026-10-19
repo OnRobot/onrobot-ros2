@@ -1,9 +1,8 @@
 # Run a first gripper simulation
 
 This guide opens one supplied gripper in Isaac Sim and controls it from the
-same RViz panel used for hardware. It is a functional integration preview. This
-The package ships the same user-facing simulation surface for `2fg7`, `2fg14`,
-`rg2`, and `rg6`. Choose the model that matches the asset you want to inspect.
+same RViz panel used for hardware.
+The same commands work for `2fg7`, `2fg14`, `rg2`, and `rg6`. Choose the model that matches the asset you want to inspect.
 
 ## Prerequisites
 
@@ -22,14 +21,14 @@ export MODEL=2fg7
 source /opt/ros/jazzy/setup.bash
 source "$ONROBOT_WS/install/setup.bash"
 export ISAAC_PACKAGE_PREFIX="$(ros2 pkg prefix onrobot_gripper_isaac)"
-export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/$MODEL/onrobot_$MODEL.usda"
+export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_${MODEL}/simready_usd/onrobot_${MODEL}.usda"
 
 test -x "$ISAAC_SIM_DIR/python.sh"
 test -f "$ISAAC_ASSET"
 ros2 run onrobot_gripper_isaac validate_asset_contract.py --model "$MODEL"
 ```
 
-Continue only when the contract check reports `passed`.
+Continue only when the asset check reports `passed`.
 
 ## Start Isaac Sim
 
@@ -73,6 +72,17 @@ the maximum position-approach speed. For RG, the position command uses the
 displayed force limit while the joystick uses mechanism angular velocity.
 Release the joystick or click **Center / stop** to request Stop.
 
+During startup, motion controls wait for fresh simulation feedback. If feedback
+is lost after a motion command, restore the running simulation and call:
+
+```bash
+ros2 service call /recovery_controller/recover std_srvs/srv/Trigger "{}"
+```
+
+Wait for recovery to succeed on `/recovery_controller/state`, then send a new
+command. **Center / stop** stops motion; it does not clear a fault.
+See [state and recovery](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/state-diagnostics-and-recovery.md).
+
 ## Insert the asset under a scene parent
 
 The supplied 2FG7 and RG2 entry USD files can also be referenced below a
@@ -85,8 +95,8 @@ Resolve the articulation root and joints below the inserted instance, rather
 than assuming the standalone root path. The tested interfaces retain their
 model units: 2FG7 drives `finger_stroke` as a prismatic distance in metres;
 RG2 drives `finger_joint` as a revolute angle in radians. The insertion check
-verified the relative dependency closure, remapped joint targets, both-finger
-motion, and position/velocity control for both models on Isaac Sim 5.0.0 under
+verified that referenced files were found, joints pointed to the inserted
+bodies, both fingers moved, and position and velocity control worked for both models on Isaac Sim 5.0.0 under
 a non-default parent transform.
 
 Here, `instance` means the referenced root prim below the scene parent:

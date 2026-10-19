@@ -41,13 +41,13 @@ meanings and, for RG grippers, different units.
 
 | Model | Physical planning joint | Unit | Stock planning aperture |
 | --- | --- | --- | --- |
-| 2FG7 | `finger_stroke` | m, one-jaw travel | 33–71 mm |
-| 2FG14 | `finger_stroke` | m, one-jaw travel | 55–105 mm |
-| RG2 | `finger_joint` | rad, CAD linkage angle | 0–101.1 mm |
-| RG6 | `finger_joint` | rad, CAD linkage angle | 0–150 mm |
+| 2FG7 | `finger_stroke` | m, one-jaw travel | 33-71 mm |
+| 2FG14 | `finger_stroke` | m, one-jaw travel | 55-105 mm |
+| RG2 | `finger_joint` | rad, CAD linkage angle | 0-101.1 mm |
+| RG6 | `finger_joint` | rad, CAD linkage angle | 0-150 mm |
 
-These are geometry-specific planning envelopes, not a reduction of the device's
-capabilities. Changing fingertip orientation or geometry requires a matching
+These ranges describe the supplied geometry. Other finger configurations may
+have different limits. Changing fingertip orientation or geometry requires a matching
 description and profile. The adapter also checks live device limits; it does
 not stretch the geometry to fit a different aperture range. CAD joint zero on
 RG grippers is below rubber contact, so the supplied profile has a nonzero
@@ -67,9 +67,9 @@ pad compression or encoder quantization at a boundary may be represented at
 the rigid geometry endpoint; this never changes the original measured topics
 or permits an out-of-range command.
 
-A new goal cancels the preceding goal and waits for its terminal response before
+A new goal cancels the preceding goal and waits for its final response before
 forwarding another. Lost state cancels an active goal. If cancellation cannot be
-confirmed, further motion is inhibited; inspect the device and restart the
+confirmed, further motion is blocked; inspect the device and restart the
 adapter only after the condition is resolved. This software mechanism is not a
 safety-rated stop.
 

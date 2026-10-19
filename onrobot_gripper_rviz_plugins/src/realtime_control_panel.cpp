@@ -1082,7 +1082,8 @@ void RealtimeControlPanel::updateStatus() {
       stopRealtime("realtime fault");
     }
     setCommandWidgetsEnabled(false);
-    setStatus("REALTIME FAULT: call stop/acknowledge before restarting");
+    setStatus("REALTIME FAULT: restore valid state, then call "
+              "recovery_controller/recover. Center / stop does not clear faults.");
     return;
   }
 
@@ -1090,6 +1091,10 @@ void RealtimeControlPanel::updateStatus() {
       m_sharedState->task_position_valid.load(std::memory_order_relaxed);
   const bool command_ready = has_limits && task_valid && !safety_blocked;
   setCommandWidgetsEnabled(command_ready);
+  if (!task_valid) {
+    setStatus("Waiting for valid gripper feedback; motion controls are disabled");
+    return;
+  }
 
   const bool position_valid =
       m_rgCoordinateProfile

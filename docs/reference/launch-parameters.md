@@ -78,13 +78,13 @@ goals only. See the [speed panel guide](../realtime-control.md#conventional-2fg-
 | `frame_prefix` | empty | TF-safe prefix | Prefix every published TF frame |
 | `publish_base_frame` | `true` | `true`, `false` | Publish a fixed parent transform |
 | `base_parent_frame` | `world` | TF frame | Parent used when base publication is enabled |
-| `start_realtime_controller` | `false` | Boolean | Activate realtime instead of conventional motion ownership |
+| `start_realtime_controller` | `false` | Boolean | Activate the realtime controller and leave the conventional controller inactive |
 | `realtime_update_rate_hz` | `auto` | Positive rate or `auto` | `auto`: conservative 50 Hz hardware exchange rate |
 | `controller_manager_update_rate_hz` | `100` | Positive Hz | `ros2_control` update rate |
 | `state_publish_rate_hz` | `100` | Positive Hz | Typed and realtime state publication rate |
 | `gripper_stall_timeout_s` | `2.0` | Positive seconds | Conventional action stall interval |
-| `supply_power_w` | `48` | `0` or `14`–`48` | 2FG only; zero preserves the device setting |
-| `conventional_speed_percent` | `50` | `1`–`100` | 2FG only; initial native conventional speed; the panel can update it at runtime on supported backends |
+| `supply_power_w` | `48` | `0` or `14-48` | 2FG only; zero preserves the device setting |
+| `conventional_speed_percent` | `50` | `1-100` | 2FG only; initial native conventional speed for commands that omit velocity |
 | `visual_detail` | `detailed` | `detailed`, `low` | 2FG7 only; selects the body visual mesh without changing collisions or kinematics |
 | `fake_motion_speed_m_s` | `0.0` | Nonnegative m/s | 2FG7 fake-test motion rate; zero is instantaneous |
 | `fake_stall` | `0` | `0`, `1` | 2FG7 deterministic fake-test stall |
@@ -102,7 +102,7 @@ goals only. See the [speed panel guide](../realtime-control.md#conventional-2fg-
 | `host` | `127.0.0.1` | Address/hostname | Real Modbus TCP endpoint |
 | `port` | `502` | Configured TCP port | Real Modbus TCP port |
 
-Launch arguments configure composition. RViz panel settings such as
+Launch arguments select the model, connection and components to start. RViz panel settings such as
 `action_name`, `joint_states_topic`, `limits_topic`, `gripper_state_topic`,
 `controller_manager_service`, `realtime_command_topic`, and
 `realtime_state_topic` configure where a panel connects; they are saved in the

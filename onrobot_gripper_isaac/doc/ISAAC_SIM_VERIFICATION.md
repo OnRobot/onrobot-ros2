@@ -6,17 +6,16 @@ OnRobot ROS 2 controllers and RViz panels to the simulation. The simulation-only
 steps do not require a physical gripper; the later hardware-in-the-loop section
 is explicitly opt-in.
 
-The articulation and kinematic procedures establish whether the selected asset
-loads and follows the ROS bridge. The full-rated payload-retention and motion
-procedures are diagnostic physics scenarios: their reports must be checked for
-the exact asset and runtime, and a failed report must not be presented as a
-product capability. These tests do not establish calibrated contact force,
+The articulation and kinematic tests check whether the selected asset loads
+and follows the ROS bridge. The payload and motion tests check whether it can
+hold the rated payload in the specified scene. Read the reports for the exact
+asset and Isaac version you use. A failed test does not support a payload claim. These tests do not establish calibrated contact force,
 hardware-equivalent drive response, or behavior with arbitrary objects and
 custom fingers.
 
 The examples use 2FG7. Substitute `2fg14`, `rg2`, or `rg6` consistently in the
 model, asset, result-directory, and output-file names for another asset. The
-2FG repeated-reference-object test has a model-specific configuration; use the
+2FG repeated contact test has a model-specific configuration; use the
 separate RG contact test where directed below. Never mix files from different
 model directories.
 
@@ -65,7 +64,7 @@ The following paths use colcon's normal isolated install layout:
 
 ```bash
 export ISAAC_PACKAGE_PREFIX="$ONROBOT_WS/install/onrobot_gripper_isaac"
-export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/2fg7/onrobot_2fg7.usda"
+export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_2fg7/simready_usd/onrobot_2fg7.usda"
 export ISAAC_ARTICULATION_TEST="$ISAAC_PACKAGE_PREFIX/lib/onrobot_gripper_isaac/run_articulation_test.py"
 test -f "$ISAAC_ASSET"
 test -x "$ISAAC_ARTICULATION_TEST"
@@ -184,8 +183,8 @@ ros2 launch onrobot_gripper_demos showcase.launch.py \
 ```
 
 The realtime RViz panel provides Open, Close, and target-aperture controls. Use
-one of them to check the position path, or publish the equivalent semantic
-command independently:
+one of them to check position control, or publish the equivalent
+command from a separate terminal:
 
 ```bash
 ros2 topic pub --rate 20 --times 40 /realtime_controller/command \
@@ -193,9 +192,10 @@ ros2 topic pub --rate 20 --times 40 /realtime_controller/command \
   '{header: auto, mode: 0, task_position: 0.0365, task_velocity: 0.01, force: 30.0}'
 ```
 
-For 2FG14 use a positive force target of at least 40 N. Realtime motion
-requires a positive force target; use the explicit Stop control when ending a
-realtime stream.
+For 2FG14 use a force target of at least 40 N. Use the explicit Stop control
+when ending a realtime stream. See the
+[command reference](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/reference/messages.md#realtimecommand) for
+model-specific force limits.
 
 Confirm that both visualizations reach the same midpoint. Use the panel's
 velocity joystick for the remaining checks:
@@ -205,9 +205,9 @@ velocity joystick for the remaining checks:
 2. Release the joystick and confirm motion stops.
 3. Repeat toward **CLOSE**.
 4. While moving slowly, stop ROS bringup with `Ctrl+C`. The simulated gripper
-   must stop rather than retaining the last velocity command. The bridge's
-   monotonic stale-command watchdog changes velocity control to a measured
-   position hold after `0.1 s` without a refreshed command.
+   must stop rather than retaining the last velocity command. After `0.1 s` without a new command, the bridge’s watchdog switches from
+   velocity control to holding the measured position. It measures this timeout
+   with a monotonic clock, which keeps advancing if the simulation clock stops.
 
 Force modes are not exposed by this backend because the simulated contact
 observations are not calibrated as a gripper-force measurement.
@@ -233,9 +233,9 @@ The runner checks:
 
 - namespaced state and an advancing global `/clock`;
 - standard open, midpoint, close, and cancellation behavior;
-- observable state-stream and `/clock` loss followed by recovery after a
-  managed bridge restart;
-- switching from conventional to realtime resource ownership;
+- loss of state messages and `/clock`, followed by recovery when the runner
+  restarts the bridge;
+- switching control from the conventional controller to the realtime controller;
 - realtime position and velocity, including held-command endpoint behavior;
 - stale-command stopping and position hold; and
 - that uncalibrated simulated force remains unavailable.
@@ -271,11 +271,10 @@ The default test performs five trials with the versioned
 - start open with the solid block resting under gravity on the narrow scene
   support and acquire contact between the block and both fingertip rigid
   bodies using a fast free-space approach and a slower contact approach;
-- retain bilateral contact while the drive target builds preload at a bounded
-  rate;
-- stop short of the commanded closing endpoint, providing a grasp/stall
-  consistency signal;
-- retain bilateral contact after the support collision is removed, while
+- keep contact on both fingertips while the drive gradually increases pressure;
+- stop before the commanded closing endpoint, showing that the object blocks
+  further closing;
+- keep contact on both fingertips after the support collision is removed, while
   gravity remains enabled throughout;
 - keep translation, rotation, speed, and total displacement within the
   declared bounds;
@@ -289,7 +288,7 @@ placement carrier lifts the block physically back to the starting height. The
 carrier uses a driven prismatic joint through the physics solver. The joint
 prevents lateral drift and rotation while the drive preserves the measured
 release offset and can extend its lift under bounded position feedback. The
-dynamic block pose is not overwritten during inter-trial reset.
+block moves through physics during this reset; its position is not set directly.
 The reset check verifies the final pose, the carrier endpoint, and the maximum
 per-step object displacement, so delayed or teleporting resets fail. A failed
 reset ends the run before another closing motion can begin. The support is a
@@ -316,10 +315,9 @@ With `--gui`, the blue solid block must be between the upper contact surfaces
 and remain visibly clear of the gripper base. The harness frames this region
 in the active viewport and pauses briefly before motion. It validates
 the configured base clearance, fingertip overlap, released clearance, and
-commanded contact reach before starting the trials. A placement-contract error
+commanded contact reach before starting the trials. A placement error
 means the scene configuration and asset geometry no longer agree; do not tune
-physics parameters around it. This test covers external grip only; internal
-grip is not supported by the current realtime firmware.
+physics parameters around it. This test covers external grip only.
 
 A pass exits with code `0` and writes a report with `status` set to `passed`.
 The force values in this report are uncalibrated physics observations used to
@@ -341,7 +339,7 @@ script, profile, and asset:
 export ISAAC_PACKAGE_PREFIX="$(ros2 pkg prefix onrobot_gripper_isaac)"
 export ISAAC_PAYLOAD_TEST="$ISAAC_PACKAGE_PREFIX/lib/onrobot_gripper_isaac/run_payload_retention_test.py"
 export ISAAC_PAYLOAD_CONFIG="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/config/payload_retention_profiles.json"
-export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/2fg7/onrobot_2fg7.usda"
+export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_2fg7/simready_usd/onrobot_2fg7.usda"
 
 "$ISAAC_SIM_DIR/python.sh" "$ISAAC_PAYLOAD_TEST" \
   --model 2fg7 \
@@ -353,8 +351,8 @@ export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/2fg
 
 Repeat with the matching model name and asset path for `2fg14`, `rg2`, and
 `rg6`. The default scenario uses each model's datasheet maximum force-fit
-payload as a static-gravity retention test. The 2FG profiles use guarded
-contact-relative preload; see [holding commands and drive settings](PHYSICAL_MOTION_SHOWCASE.md#run-all-four-grippers)
+payload as a static-gravity retention test. The 2FG profiles check for contact before increasing pressure through a
+position target based on where the fingers touched the block; see [holding commands and drive settings](PHYSICAL_MOTION_SHOWCASE.md#run-all-four-grippers)
 for the distinction from position-only holding. Run the full-rated dynamic
 test separately:
 
@@ -393,7 +391,7 @@ position/velocity iteration counts and articulation-contact ordering under
 supported by this test; migrate the excess budget to position iterations
 instead.
 RG6 additionally requires `solve_articulation_contact_last=true` for its
-full-rated external-pinch contract. A full Isaac Sim 6 asset regression remains
+external-pinch test at the full rated payload. A full Isaac Sim 6 asset regression remains
 required after changing any of these values.
 Inspect a failed report by phase and measurement; do not relax a threshold or
 change contact material solely to turn a failure green. The results apply to
@@ -405,7 +403,7 @@ Run the complete full-rated matrix from a built and sourced workspace with:
 ```bash
 mkdir -p "$ISAAC_RESULTS/payload-retention"
 for model in 2fg7 2fg14 rg2 rg6; do
-  asset="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/$model/onrobot_${model}.usda"
+  asset="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_${model}/simready_usd/onrobot_${model}.usda"
   for scenario in rated-margin-static dynamic-showcase; do
     "$ISAAC_SIM_DIR/python.sh" "$ISAAC_PAYLOAD_TEST" \
       --model "$model" \
@@ -417,8 +415,7 @@ for model in 2fg7 2fg14 rg2 rg6; do
 done
 ```
 
-Treat every process exit and report status as a separate result. A complete
-candidate matrix is usable only when every required report contains
+Treat every process exit and report status as a separate result. The full test set passes only when every required report contains
 `"status": "passed"`; otherwise preserve the failed report and investigate
 before making a payload claim. Run one model at a time with `--gui` when
 visually checking contact placement; use the headless matrix for the repeatable
@@ -432,7 +429,7 @@ and runner before relying on it:
 ```bash
 ros2 run onrobot_gripper_isaac validate_payload_retention_results.py \
   --results-dir "$ISAAC_RESULTS/payload-retention" \
-  --isaac-version 6.0.1 \
+  --isaac-version 6.1.0 \
   --output "$ISAAC_RESULTS/payload-retention/matrix_validation.json"
 ```
 
@@ -440,23 +437,22 @@ This fails on a missing case, stale asset/config/runner digest, stage-local
 physics override, reduced payload, failed acceptance check, or runtime-version
 mismatch.
 
-For a single unattended run on an Isaac Sim 6.0.1 workstation, use the
+For a single unattended run on an Isaac Sim 6.1.0 workstation, use the
 installed fixed-scope matrix runner instead of copying the loop above:
 
 ```bash
 ros2 run onrobot_gripper_isaac run_payload_retention_matrix.py \
   --isaac-python "$ISAAC_SIM_DIR/python.sh" \
-  --output-dir "$ISAAC_RESULTS/payload-retention-6.0.1"
+  --output-dir "$ISAAC_RESULTS/payload-retention-6.1.0"
 ```
 
 It runs only the four supported models and the two documented scenarios,
-captures one log and JSON report per case, performs exact-input matrix
-validation, and writes `matrix_run.json`. That manifest is updated atomically
+captures one log and JSON report per case, performs checks that every report used the expected files and settings, and writes `matrix_run.json`. That manifest is updated atomically
 before and after every case, so a synchronized copy shows current progress and
-the final verdict. It stops at the first failed case by default; add
+the final result. It stops at the first failed case by default; add
 `--continue-on-failure` when collecting the entire failure matrix.
 The runner is intentionally one-shot. Start it explicitly for each
-asset revision; it exits after writing the reports and aggregate verdict.
+asset revision; it exits after writing the individual reports and overall result.
 
 ### Physical-motion showcase
 
@@ -464,8 +460,7 @@ The fixed-base dynamic case and the live moving-gripper demonstration serve
 different purposes. Use the dedicated
 [four-gripper physical-motion showcase](PHYSICAL_MOTION_SHOWCASE.md) to move
 the complete gripper and full-rated reference payload under live PhysX. That
-guide contains the installed and source-tree commands, visual acceptance
-criteria, exact-input checks, keyframe capture, and optional video-ready frame
+guide contains the installed and source-tree commands, expected visible results, checks of the files and settings used, keyframe capture, and optional video-ready frame
 recording for 2FG7, 2FG14, RG2, and RG6.
 
 ## 10. Record data for a failure
@@ -517,7 +512,7 @@ was manually stopped or replaced.
 by eye. Keep the JSON and log and use the measurements for a repeatable
 drive-gain adjustment.
 
-**The dynamic contact test never acquires bilateral contact:** rerun once with
+**The dynamic contact test never makes contact on both fingertips:** rerun once with
 `--gui` and preserve the report. Confirm that the configured solid block is
 centered between the upper contact regions of the supplied outward-facing
 fingers and does not intersect the gripper base.

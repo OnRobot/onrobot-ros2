@@ -5,12 +5,12 @@ demonstrating OnRobot grippers in RViz:
 
 - **Gripper Control** sends the standard parallel-gripper action used by 2FG
   and RG models;
-- **Realtime Position and Velocity** sends model-aware aperture targets,
-  streams guarded velocity commands, and sends an ordered Stop when a target
+- **Realtime Position and Velocity** sends aperture targets for the selected model,
+  streams velocity commands, and sends Stop when a target
   is reached or the joystick is released; and
 - **Force & State History** plots read-only typed state from a live session or
   a rosbag replay, including signed measured force where the model provides it,
-  validity gaps, grip detection, mode changes, and device faults; and
+  gaps where measurements are unavailable, grip detection, mode changes, and device faults; and
 - **Three-Finger Control** sends the native external-diameter commands used by
   3FG models (evaluation-only ROS path).
 
@@ -46,7 +46,7 @@ or velocity approach, choose a positive closing-force target, then press and
 hold **Hold to grip**. Position approach uses the target aperture above, which
 must be below the current aperture; velocity approach closes at the selected
 velocity limit. Parameters are captured when you press the button. Target ranges
-are 30–95 N for 2FG7 and 40–196 N for 2FG14. Closing force feedback is negative,
+are 30-95 N for 2FG7 and 40-196 N for 2FG14. Closing force feedback is negative,
 following the firmware convention; the target is positive.
 
 Releasing the button or losing focus stops force control. **Release / open**
@@ -60,9 +60,9 @@ prediction based on reaching a target. Validate actual force and retention
 for your fingers and workpiece.
 
 The fake backend exercises force-approach motion without a contact model:
-force feedback is unavailable and no grip is invented. The Isaac ROS joint
-bridge does not advertise regulated-force support. RG controls are unchanged;
-these two closing-force modes apply only to 2FG models.
+force feedback is unavailable, and no grip contact is reported. The Isaac ROS joint
+bridge does not support force regulation. These two closing-force modes apply
+only to 2FG models.
 
 The conventional panel's 2FG force field uses the model's minimum nonzero
 force (20 N for 2FG7 and 40 N for 2FG14) through the live conventional ceiling.
@@ -70,7 +70,7 @@ The panel selects that minimum by default; the API also accepts an explicit
 zero to request the firmware minimum convention. For controllers that expose
 conventional speed control, the panel provides **Max aperture speed** in m/s.
 It is sent with the next Open, Close or Send target action. See
-the [conventional speed panel guide](../docs/realtime-control.md#conventional-2fg-speed-panel).
+the [conventional speed panel guide](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/realtime-control.md#conventional-2fg-speed-panel).
 
 ## Panel routing and state history
 
@@ -93,7 +93,7 @@ different topic, set `joint_states_topic` for the panel. Invalid or stale
 aperture feedback disables motion; unavailable effort does not. The panel's
 startup log identifies its joint, feedback topic, and action endpoint.
 
-The Three-Finger Control panel uses the same namespace-safe settings pattern.
+The Three-Finger Control panel also uses relative topic names by default.
 Its defaults are the relative `diameter_controller/commands`, `joint_states`,
 `three_finger_limit_broadcaster/values`, and
 `gripper_state_broadcaster/state` topics. It shows the measured external
@@ -116,7 +116,7 @@ follows that namespace automatically. Set `gripper_state_topic` in the panel's
 needed. The conventional and realtime panels use the same relative-default
 rule for their actions and state topics. A supported 2FG force sample is
 plotted only when its validity and freshness fields are true. RG force shown
-elsewhere in the state contract is command-derived, so the panel labels
+elsewhere in the state message comes from the command, so the panel labels
 measured force as unavailable for RG models.
 
 See the workspace Getting Started guide for the operating procedure.

@@ -20,45 +20,86 @@ namespace onrobot_gripper_controllers {
 
 /// Standard ParallelGripperCommand controller with an explicit device Stop.
 ///
-/// The upstream controller holds the measured position when an action is
-/// cancelled. OnRobot conventional commands are atomic device motions, so a
-/// new target does not reliably interrupt the active motion. This subclass
-/// retains the upstream action, feedback, tolerance, and stall behavior while
-/// emitting a one-shot stop event on cancel or preemption. Deactivation writes
-/// the measured position and Stop while interfaces are still loaned, so a
-/// hardware backend cannot replay the old target after the controller releases
-/// its interfaces. The numeric event marker is only a transport-safe marker;
-/// the hardware consumes and clears it, so a controller recreated after an
-/// unload may start its marker sequence again.
-/// Cancellation hands off Stop against the backend's shared admission lock;
-/// motion outputs remain owned by the manager update thread. Replacement goals
-/// wait for Stop consumption. A busy cancel handoff aborts the action and queues
-/// a retry rather than acknowledging a Stop that has not been handed off.
-/// Non-finite position/velocity aborts the action without claiming contact,
-/// queues Stop, and requires a new goal after valid feedback returns.
+/// Cancelling or replacing a goal requests Stop. Setting a new position alone
+/// does not reliably interrupt an OnRobot conventional movement. The controller
+/// keeps the base controller's action, feedback, tolerance and stall behavior.
+/// Replacement goals wait until the backend processes Stop.
+///
+/// During cancellation, the callback uses the shared backend lock to submit
+/// Stop. If the lock is busy, the action is aborted and Stop is queued for a
+/// retry; the controller does not acknowledge it as submitted. Only the
+/// controller manager's update thread writes motion commands.
+///
+/// Deactivation writes the measured position and Stop before releasing the
+/// interfaces, so the backend cannot repeat the old target afterward. The
+/// backend clears each Stop marker after processing it. A controller loaded
+/// again may therefore restart its marker sequence.
+///
+/// NaN or infinity in position or velocity feedback aborts the action and
+/// queues Stop. It is not reported as object contact. Submit a new goal after
+/// valid feedback returns.
 class ParallelGripperActionController final
     : public parallel_gripper_action_controller::GripperActionController {
 public:
+  /// @brief Initialize the base action controller and declare speed settings.
+  ///
+  /// Adds conventional_speed_control, conventional_speed_percent and model.
+  /// Propagates base initialization failures and returns ERROR if parameter
+  /// declaration fails.
   controller_interface::CallbackReturn on_init() override;
+  /// @brief Configure the action controller and conventional speed selection.
+  ///
+  /// When speed control is enabled, requires a supported 2FG model and a
+  /// default speed in the range 1-100 percent. Returns ERROR for incompatible
+  /// settings and propagates base configuration failures.
   controller_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &previous_state) override;
+  /// @brief Claim Stop and command-sequence interfaces along with motion interfaces.
+  ///
+  /// Also requests the native speed interface when conventional speed control
+  /// is enabled.
   controller_interface::InterfaceConfiguration
   command_interface_configuration() const override;
+  /// @brief Add the state needed to convert an action speed from m/s.
+  ///
+  /// When conventional speed control is enabled, requests force limits,
+  /// calibration, power validity and sample ages alongside the base feedback
+  /// interfaces.
   controller_interface::InterfaceConfiguration
   state_interface_configuration() const override;
 
+  /// @brief Check feedback and coordinate motion, replacement goals and Stop.
+  ///
+  /// Passes the supplied time and period to the base action controller. Defers
+  /// work when a callback holds the controller lock. Invalid feedback aborts
+  /// the action and requests Stop; it is not reported as a successful grip.
   controller_interface::return_type
   update(const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
+  /// @brief Bind required interfaces and enable the gripper action server.
+  ///
+  /// Requires the configured effort interface and the OnRobot command
+  /// interfaces. Returns ERROR for incomplete interfaces or failed setup, and
+  /// propagates base activation failures.
   controller_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &previous_state) override;
 
+  /// @brief Write a measured hold target and Stop before releasing interfaces.
+  ///
+  /// Cancels the active goal after writing the commands. Returns ERROR if hold or Stop
+  /// cannot be written; the return value does not confirm physical standstill.
   controller_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &previous_state) override;
 
+  /// @brief Cancel outstanding goals and release the action server and
+  /// callbacks.
+  ///
+  /// Also releases timers and interface bindings so a later load can create a
+  /// new server. Returns the base controller cleanup result.
   controller_interface::CallbackReturn
   on_cleanup(const rclcpp_lifecycle::State &previous_state) override;
 
+  /// @cond INTERNAL
 private:
   rclcpp_action::GoalResponse goal_with_lifecycle(
       const rclcpp_action::GoalUUID &uuid,
@@ -127,10 +168,10 @@ private:
   bool conventional_speed_control_enabled_{false};
   std::atomic<int> conventional_speed_percent_{50};
   int pending_conventional_speed_percent_{50};
-  // A goal response and its accepted callback are separate action-server
-  // callbacks. Reserve the selected native percentage and the force/calibration
-  // context by UUID so a concurrent parameter request or state change cannot
-  // silently alter an accepted SI-speed goal.
+  // The goal response and accepted-goal handler are separate callbacks. Store
+  // the selected speed percentage, force and calibration under the goal UUID
+  // so a parameter or state change between callbacks cannot change the speed
+  // of an accepted goal expressed in m/s.
   std::map<rclcpp_action::GoalUUID, GoalSpeedReservation>
       accepted_goal_speed_percent_;
   std::optional<ConventionalVelocitySnapshot>
@@ -141,6 +182,7 @@ private:
   std::atomic_bool stop_requested_{false};
   std::uint64_t stop_sequence_{0};
   std::uint64_t conventional_command_sequence_{0};
+  /// @endcond
 };
 
 #ifdef ONROBOT_GRIPPER_CONTROLLERS_TESTING

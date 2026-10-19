@@ -25,8 +25,11 @@ from isaac_model_contract import default_asset
 from isaac_model_contract import driven_joint
 from isaac_model_contract import joint_limits
 from isaac_model_contract import load_contract
+from isaac_model_contract import validate_composed_interface
 from isaac_model_contract import SUPPORTED_MODELS
 
+from isaac_runtime_compat import configure_standalone_physics
+from isaac_runtime_compat import configure_standalone_view
 from isaac_runtime_compat import is_stage_loading
 from isaac_runtime_compat import play
 from isaac_runtime_compat import setup_simulation
@@ -56,6 +59,7 @@ DEFAULT_PHYSICAL_JOINTS = {
     'rg2': 'finger_joint',
     'rg6': 'finger_joint',
 }
+CONVENTIONAL_MINIMUM_EFFORT_N = {'2fg7': 20.0, '2fg14': 40.0}
 # Every supported model has bounded physical position, direction/reversal,
 # watchdog, Stop, and restoration evidence for its current host protocol.
 # This gate permits qualification motion; passing HIL evidence remains a
@@ -1788,8 +1792,9 @@ def main() -> int:
         '--travel', type=float, default=0.010,
         help='maximum external-aperture excursion in meters (max 0.020)')
     parser.add_argument(
-        '--effort', type=float, default=10.0,
-        help='conventional action effort in newtons (max 40)')
+        '--effort', type=float,
+        help=('conventional action effort in newtons (max 40; defaults: '
+              '2FG7 20, 2FG14 40, RG2/RG6 10)'))
     parser.add_argument(
         '--motion-timeout', type=float, default=20.0,
         help='timeout per motion or restoration in seconds')
@@ -1800,6 +1805,8 @@ def main() -> int:
         '--cancel-after-motion', type=float, default=0.001,
         help='measured aperture change required before cancellation in meters')
     args, _ = parser.parse_known_args()
+    if args.effort is None:
+        args.effort = CONVENTIONAL_MINIMUM_EFFORT_N.get(args.model, 10.0)
 
     if args.enable_hardware_motion and args.confirm_model != args.model:
         parser.error(
@@ -1871,6 +1878,13 @@ def main() -> int:
             'matching --model')
     if any(conventional_verifications) and args.output is None:
         parser.error('conventional action verification requires --output')
+    if (args.hardware_control == 'conventional' and
+            (args.enable_hardware_motion or any(conventional_verifications)) and
+            args.model in CONVENTIONAL_MINIMUM_EFFORT_N and
+            args.effort < CONVENTIONAL_MINIMUM_EFFORT_N.get(args.model, 0.0)):
+        parser.error(
+            f'--effort must be at least '
+            f'{CONVENTIONAL_MINIMUM_EFFORT_N[args.model]:g} N for {args.model}')
     if (not args.enable_hardware_motion and
             not args.ros_preflight_only and
             not args.verify_realtime_position and
@@ -1881,6 +1895,7 @@ def main() -> int:
             args.shadow_tolerance <= 0.0 or
             args.startup_timeout <= 0.0 or args.duration < 0.0 or
             args.travel <= 0.0 or args.travel > 0.020 or
+            not math.isfinite(args.effort) or
             args.effort <= 0.0 or args.effort > 40.0 or
             args.motion_timeout <= 0.0 or args.stop_timeout <= 0.0 or
             args.cancel_after_motion <= 0.0 or
@@ -2025,6 +2040,13 @@ def main() -> int:
         while is_stage_loading():
             app.update()
 
+        validate_composed_interface(omni.usd.get_context().get_stage(), contract)
+        if args.gui:
+            configure_standalone_view(
+                omni.usd.get_context().get_stage(),
+                '/' + contract['usd']['default_prim'].lstrip('/'))
+
+        configure_standalone_physics(omni.usd.get_context().get_stage(), args.model)
         setup_simulation(SimulationManager, dt=args.physics_dt, device='cpu')
         play()
         # The first PhysX frame can block for seconds while Isaac initializes

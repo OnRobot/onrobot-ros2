@@ -8,12 +8,14 @@ import math
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
 import yaml
-from isaac_model_contract import asset_repository_root
+from isaac_model_contract import (
+    asset_repository_root, compatible_manifest, verify_asset_integrity)
 
 
 SUPPORTED_MODELS = ('2fg7', '2fg14', 'rg2', 'rg6')
@@ -98,6 +100,18 @@ def _vector3(text: str, attribute: str) -> tuple[float, float, float]:
 
 def _assert_close(actual: float, expected: float, label: str) -> None:
     if not (math.isfinite(actual) and math.isfinite(expected)) or abs(actual - expected) > 1e-9:
+        raise AssertionError(f'{label}: expected {expected}, got {actual}')
+
+
+def _assert_usd_float(actual: float, expected: float, label: str) -> None:
+    """Compare float attributes after USD's single-precision conversion."""
+    try:
+        actual32 = struct.unpack('=f', struct.pack('=f', actual))[0]
+        expected32 = struct.unpack('=f', struct.pack('=f', expected))[0]
+    except (OverflowError, struct.error) as error:
+        raise AssertionError(f'{label}: value outside USD float range') from error
+    if (not (math.isfinite(actual32) and math.isfinite(expected32))
+            or actual32 != expected32):
         raise AssertionError(f'{label}: expected {expected}, got {actual}')
 
 
@@ -198,38 +212,39 @@ def _validate_release_portability(asset_root: Path,
 
 def _validate_rg_usd(entry: str, physics: str, physx: str,
                      default_physx: str, robot: str, instances: str, usd: dict,
-                     contract: dict) -> None:
-    """Validate the RG angular linkage and intentional tip-contact policy."""
+                     contract: dict, reference_tuning: bool = False) -> None:
+    """Check the angular interface; optionally check a recorded tuning baseline."""
     driven = _joint_block(
         physics, f'def PhysicsRevoluteJoint "{usd["actuated_joint"]}"')
     _assert_near(math.radians(_number(driven, 'physics:lowerLimit')),
                  usd['lower_limit'], 1e-7, 'USD driven lower limit')
     _assert_near(math.radians(_number(driven, 'physics:upperLimit')),
                  usd['upper_limit'], 1e-7, 'USD driven upper limit')
-    _assert_close(_number(driven, 'drive:angular:physics:maxForce'),
-                  usd['maximum_drive_torque_nm'],
-                  'USD drive maximum torque')
-    _assert_close(_number(driven, 'drive:angular:physics:stiffness'),
-                  contract['drive_tuning']['stiffness'], 'USD stiffness')
-    _assert_close(_number(driven, 'drive:angular:physics:damping'),
-                  contract['drive_tuning']['damping'], 'USD damping')
+    if reference_tuning:
+        _assert_close(_number(driven, 'drive:angular:physics:maxForce'),
+                      usd['maximum_drive_torque_nm'],
+                      'USD drive maximum torque')
+        _assert_usd_float(_number(driven, 'drive:angular:physics:stiffness'),
+                          contract['drive_tuning']['stiffness'], 'USD stiffness')
+        _assert_usd_float(_number(driven, 'drive:angular:physics:damping'),
+                          contract['drive_tuning']['damping'], 'USD damping')
 
-    driven_physx = _joint_block(
-        physx, f'over "{usd["actuated_joint"]}"')
-    _assert_near(math.radians(
-        _number(driven_physx, 'physxJoint:maxJointVelocity')),
-        usd['maximum_velocity'], 1e-6, 'USD driven maximum velocity')
-    tuning = contract['drive_tuning']
-    _assert_close(_number(driven_physx, 'physxJoint:armature'),
-                  tuning['armature_kg_m2'], 'USD driven armature')
-    default_driven = _joint_block(default_physx, f'over "{usd["actuated_joint"]}"')
-    _assert_close(_number(default_driven, 'physxJoint:armature'),
-                  tuning['armature_kg_m2'], 'USD default driven armature')
-    _assert_near(math.radians(_number(default_driven, 'physxJoint:maxJointVelocity')),
-                 usd['maximum_velocity'], 1e-6, 'USD default driven maximum velocity')
-    for name in ('stiffness', 'damping'):
-        _assert_near(tuning[name] * 180 / math.pi, tuning[name + '_si'],
-                     1e-5, f'RG {name} angular unit conversion')
+        driven_physx = _joint_block(
+            physx, f'over "{usd["actuated_joint"]}"')
+        _assert_near(math.radians(
+            _number(driven_physx, 'physxJoint:maxJointVelocity')),
+            usd['maximum_velocity'], 1e-6, 'USD driven maximum velocity')
+        tuning = contract['drive_tuning']
+        _assert_close(_number(driven_physx, 'physxJoint:armature'),
+                      tuning['armature_kg_m2'], 'USD driven armature')
+        default_driven = _joint_block(default_physx, f'over "{usd["actuated_joint"]}"')
+        _assert_close(_number(default_driven, 'physxJoint:armature'),
+                      tuning['armature_kg_m2'], 'USD default driven armature')
+        _assert_near(math.radians(_number(default_driven, 'physxJoint:maxJointVelocity')),
+                     usd['maximum_velocity'], 1e-6, 'USD default driven maximum velocity')
+        for name in ('stiffness', 'damping'):
+            _assert_near(tuning[name] * 180 / math.pi, tuning[name + '_si'],
+                         1e-5, f'RG {name} angular unit conversion')
     expected_reference = (
         f'<{usd["articulation_root"]}/Physics/{usd["actuated_joint"]}>')
     mimic_tuning = contract['mimic_constraint_tuning']
@@ -242,18 +257,19 @@ def _validate_rg_usd(entry: str, physics: str, physx: str,
             _number(block,
                     f'physxMimicJoint:{follower["axis"]}:gearing'),
             follower['gearing'], f'USD {follower["name"]} gearing')
-        _assert_close(
-            _number(
-                block,
-                f'physxMimicJoint:{follower["axis"]}:naturalFrequency'),
-            mimic_tuning['natural_frequency_hz'],
-            f'USD {follower["name"]} mimic natural frequency')
-        _assert_close(
-            _number(
-                block,
-                f'physxMimicJoint:{follower["axis"]}:dampingRatio'),
-            mimic_tuning['damping_ratio'],
-            f'USD {follower["name"]} mimic damping ratio')
+        if reference_tuning:
+            _assert_close(
+                _number(
+                    block,
+                    f'physxMimicJoint:{follower["axis"]}:naturalFrequency'),
+                mimic_tuning['natural_frequency_hz'],
+                f'USD {follower["name"]} mimic natural frequency')
+            _assert_close(
+                _number(
+                    block,
+                    f'physxMimicJoint:{follower["axis"]}:dampingRatio'),
+                mimic_tuning['damping_ratio'],
+                f'USD {follower["name"]} mimic damping ratio')
         if 'PhysicsDriveAPI' in block:
             raise AssertionError(
                 f'USD mimic {follower["name"]} has an independent drive')
@@ -269,6 +285,8 @@ def _validate_rg_usd(entry: str, physics: str, physx: str,
     collision = contract['collision_model']
     if f'string Physics = "{collision["default_variant"]}"' not in entry:
         raise AssertionError('RG entry point selects the wrong collision mode')
+    if not reference_tuning:
+        return
     self_collision = _number(physx, 'physxArticulation:enabledSelfCollisions')
     _assert_close(self_collision, 1.0 if collision['self_collision'] else 0.0,
                   'RG self-collision policy')
@@ -378,19 +396,24 @@ def _validate_rg_usd(entry: str, physics: str, physx: str,
             raise AssertionError(f'RG robot schema omits {name}')
 
 
-def _validate_usd(package_root: Path, contract: dict) -> None:
-    package_root = asset_repository_root(package_root)
-    layers = contract['layers']
-    for relative, expected_hash in layers.items():
-        path = package_root / relative
-        if not path.is_file():
-            raise AssertionError(f'missing asset layer: {relative}')
-        actual_hash = _sha256(path)
-        if actual_hash != expected_hash:
-            raise AssertionError(
-                f'asset layer checksum changed: {relative}; update the asset '
-                'contract intentionally after review')
-
+def _validate_usd(package_root: Path, contract: dict,
+                  reference_tuning: bool = False) -> None:
+    if reference_tuning and 'layers' not in contract:
+        contract = _with_reference_evidence(package_root, contract)
+    source_root = package_root
+    package_root = asset_repository_root(source_root)
+    manifest = compatible_manifest(package_root, source_root)
+    verify_asset_integrity(package_root, manifest)
+    prefix = str(Path(contract['asset_entrypoint']).parent) + '/'
+    layers = {name: value for name, value in manifest['files'].items()
+              if name.startswith(prefix)}
+    if reference_tuning:
+        # Old evidence belongs to these exact bytes, not any compatible update.
+        reference_files = {name: value for name, value in layers.items()
+                           if Path(name).suffix in ('.usd', '.usda', '.usdc')
+                           or name in contract['layers']}
+        if reference_files != contract['layers']:
+            raise AssertionError('reference asset hashes differ from recorded tuning/evidence')
     _validate_references(package_root, layers)
     _validate_release_portability(package_root, layers)
     entry = (package_root / contract['asset_entrypoint']).read_text(
@@ -429,23 +452,24 @@ def _validate_usd(package_root: Path, contract: dict) -> None:
     if contract['model'] in ('rg2', 'rg6'):
         _validate_rg_usd(
             entry, physics, physx, default_physx, robot, instances, usd,
-            contract)
+            contract, reference_tuning)
         return
-    if ('physics:approximation = "convexHull"' in instances or
-            'physics:approximation = "convexDecomposition"' not in
-            instances):
-        raise AssertionError(
-            '2FG collision meshes must use convex decomposition so concave '
-            'finger geometry is not filled by an invisible convex hull')
-    if contract['model'] == '2fg14':
-        collision_mesh_count = instances.count('PhysicsMeshCollisionAPI')
-        guide_purpose_count = instances.count('token purpose = "guide"')
-        if (collision_mesh_count == 0 or
-                guide_purpose_count != collision_mesh_count):
+    if reference_tuning:
+        if ('physics:approximation = "convexHull"' in instances or
+                'physics:approximation = "convexDecomposition"' not in
+                instances):
             raise AssertionError(
-                '2FG14 collision-only meshes must use guide purpose so they '
-                'cannot appear as rendered geometry')
-    _validate_reference_finger_collisions(contract, base, instances)
+                '2FG collision meshes must use convex decomposition so concave '
+                'finger geometry is not filled by an invisible convex hull')
+        if contract['model'] == '2fg14':
+            collision_mesh_count = instances.count('PhysicsMeshCollisionAPI')
+            guide_purpose_count = instances.count('token purpose = "guide"')
+            if (collision_mesh_count == 0 or
+                    guide_purpose_count != collision_mesh_count):
+                raise AssertionError(
+                    '2FG14 collision-only meshes must use guide purpose so they '
+                    'cannot appear as rendered geometry')
+        _validate_reference_finger_collisions(contract, base, instances)
 
     driven = _joint_block(
         physics, f'def PhysicsPrismaticJoint "{usd["actuated_joint"]}"')
@@ -455,42 +479,43 @@ def _validate_usd(package_root: Path, contract: dict) -> None:
         physx, f'over "{usd["follower_joint"]}"')
     driven_physx = _joint_block(
         physx, f'over "{usd["actuated_joint"]}"')
-    drive_override = _joint_block(
-        entry, f'over "{usd["actuated_joint"]}"')
+    drive_override = (_joint_block(
+        entry, f'over "{usd["actuated_joint"]}"') if reference_tuning else "")
 
     _assert_close(_number(driven, 'physics:lowerLimit'),
                   usd['lower_limit_m'], 'USD driven lower limit')
     _assert_close(_number(driven, 'physics:upperLimit'),
                   usd['upper_limit_m'], 'USD driven upper limit')
-    _assert_close(_number(driven, 'drive:linear:physics:maxForce'),
-                  usd['maximum_drive_force_n'],
-                  'USD drive maximum force')
-    physx_drive_force = contract['drive_tuning'].get(
-        'physx_single_drive_force_n')
-    if physx_drive_force is not None:
-        nominal_force = contract['drive_tuning'][
-            'nominal_grip_force_reference_n']
-        _assert_close(
-            nominal_force, usd['maximum_drive_force_n'],
-            'nominal grip-force reference')
-        # Validate the authored ceiling, not an unproven universal factor
-        # between a datasheet grip rating and a generalized actuator force.
-        _assert_close(
-            _number(driven_physx, 'drive:linear:physics:maxForce'),
-            physx_drive_force, 'PhysX single-drive maximum force')
-    _assert_close(_number(drive_override, 'drive:linear:physics:stiffness'),
-                  contract['drive_tuning']['stiffness'], 'USD stiffness')
-    _assert_close(_number(drive_override, 'drive:linear:physics:damping'),
-                  contract['drive_tuning']['damping'], 'USD damping')
-    _assert_close(_number(driven_physx, 'physxJoint:armature'),
-                  contract['drive_tuning']['armature_kg'],
-                  'USD driven linear armature')
-    _assert_close(_number(driven_physx, 'physxJoint:maxJointVelocity'),
-                  usd['maximum_velocity_m_s'],
-                  'USD driven maximum velocity')
-    _assert_close(_number(mimic, 'physxJoint:maxJointVelocity'),
-                  usd['maximum_velocity_m_s'],
-                  'USD follower maximum velocity')
+    if reference_tuning:
+        _assert_close(_number(driven, 'drive:linear:physics:maxForce'),
+                      usd['maximum_drive_force_n'],
+                      'USD drive maximum force')
+        physx_drive_force = contract['drive_tuning'].get(
+            'physx_single_drive_force_n')
+        if physx_drive_force is not None:
+            nominal_force = contract['drive_tuning'][
+                'nominal_grip_force_reference_n']
+            _assert_close(
+                nominal_force, usd['maximum_drive_force_n'],
+                'nominal grip-force reference')
+            # Validate the authored ceiling, not an unproven universal factor
+            # between a datasheet grip rating and a generalized actuator force.
+            _assert_close(
+                _number(driven_physx, 'drive:linear:physics:maxForce'),
+                physx_drive_force, 'PhysX single-drive maximum force')
+        _assert_close(_number(drive_override, 'drive:linear:physics:stiffness'),
+                      contract['drive_tuning']['stiffness'], 'USD stiffness')
+        _assert_close(_number(drive_override, 'drive:linear:physics:damping'),
+                      contract['drive_tuning']['damping'], 'USD damping')
+        _assert_close(_number(driven_physx, 'physxJoint:armature'),
+                      contract['drive_tuning']['armature_kg'],
+                      'USD driven linear armature')
+        _assert_close(_number(driven_physx, 'physxJoint:maxJointVelocity'),
+                      usd['maximum_velocity_m_s'],
+                      'USD driven maximum velocity')
+        _assert_close(_number(mimic, 'physxJoint:maxJointVelocity'),
+                      usd['maximum_velocity_m_s'],
+                      'USD follower maximum velocity')
     _assert_close(_number(follower, 'physics:lowerLimit'),
                   usd['lower_limit_m'], 'USD follower lower limit')
     _assert_close(_number(follower, 'physics:upperLimit'),
@@ -935,6 +960,24 @@ def _evidence_package_root(package_root: Path) -> Path:
     return package_root
 
 
+def _with_reference_evidence(package_root: Path, contract: dict) -> dict:
+    """Load explicitly requested private history, never install it as a claim."""
+    import copy
+    path = _evidence_package_root(package_root) / 'evidence/reference_contract_metadata.json'
+    if not path.is_file():
+        raise AssertionError('private reference evidence is unavailable in this installation')
+    history = json.loads(path.read_text(encoding='utf-8'))
+    if history.get('schema_version') != 1 or history.get('scope') != 'historical-reference-only':
+        raise AssertionError('invalid private reference evidence scope')
+    result = copy.deepcopy(contract)
+    for key, value in history['models'][contract['model']].items():
+        if key in ('runtime', 'dynamic_contact'):
+            result.setdefault(key, {}).update(value)
+        else:
+            result[key] = value
+    return result
+
+
 def _validate_kinematic_evidence(package_root: Path, contract: dict) -> None:
     qualification = contract['qualification']
     status = qualification['automated_kinematic_regression']
@@ -1113,7 +1156,7 @@ def _validate_hardware_in_loop_evidence(
         raise AssertionError(
             'hardware-in-the-loop health evidence is incomplete')
     expected_asset_files = {
-        str(Path(relative).relative_to(f"assets/{contract['model']}")):
+        str(Path(relative).relative_to(Path(contract['asset_entrypoint']).parent)):
         digest
         for relative, digest in contract['layers'].items()
     }
@@ -1190,32 +1233,19 @@ def _validate_hardware_in_loop_evidence(
 
 def validate(package_root: Path, ros_root: Path,
              description_root: Path, model: str = '2fg7',
-             include_internal_evidence: bool | None = None) -> dict:
+             include_internal_evidence: bool = False) -> dict:
     """Validate asset files and their agreement with the ROS description."""
-    if include_internal_evidence is None:
-        include_internal_evidence = (_evidence_package_root(package_root) / 'evidence').is_dir()
     contract_path = package_root / 'config' / f'{model}_asset_contract.json'
     contract = json.loads(contract_path.read_text(encoding='utf-8'))
     if contract['model'] != model:
         raise AssertionError(
             f'contract identifies {contract["model"]}, expected {model}')
-    tested_versions = contract['runtime']['tested_isaac_sim_versions']
-    if (not isinstance(tested_versions, list) or
-            any(not isinstance(version, str) or not version
-                for version in tested_versions)):
-        raise AssertionError(
-            'tested Isaac Sim versions must be a list of version strings')
-    if contract['runtime']['version_policy'] != 'feature-gated':
-        raise AssertionError(
-            'Isaac Sim runtime compatibility must remain feature-gated')
-    if (contract['runtime']['runtime_validation'] != 'pending' and
-            not tested_versions):
-        raise AssertionError(
-            'a qualified runtime claim requires at least one tested version')
+    if include_internal_evidence:
+        contract = _with_reference_evidence(package_root, contract)
     if contract['runtime']['physics_backend'] != 'physx':
         raise AssertionError(
-            f'the supplied {model} asset is qualified only for PhysX')
-    _validate_usd(package_root, contract)
+            f'the supplied {model} asset requires PhysX')
+    _validate_usd(package_root, contract, reference_tuning=include_internal_evidence)
     _validate_ros(contract, ros_root, description_root)
     if include_internal_evidence:
         _validate_kinematic_evidence(package_root, contract)
@@ -1224,28 +1254,21 @@ def validate(package_root: Path, ros_root: Path,
             package_root, contract, include_internal_evidence)
     if include_internal_evidence:
         _validate_hardware_in_loop_evidence(package_root, contract)
-    contact_status = contract.get('dynamic_contact', {}).get('status')
-    if contact_status is None:
-        contact_status = contract['qualification'].get(
-            'hard_fingertip_contact', 'not-run')
+    manifest = compatible_manifest(asset_repository_root(package_root), package_root)
     report = {
         'model': contract['model'],
-        'asset_revision': contract['asset_revision'],
-        'tested_isaac_sim_versions': tested_versions,
+        'package_id': manifest['catalog_packages'][model]['package_id'],
+        'interface_revision': manifest['models'][model]['interface_revision'],
+        'supported_isaac_sim_versions': contract['runtime']['supported_isaac_sim_versions'],
         'physics_backend': contract['runtime']['physics_backend'],
         'offline_contract': 'passed',
-        'runtime_validation': contract['runtime']['runtime_validation'],
+        'runtime_validation': 'not-published',
         'fidelity': contract['runtime']['fidelity'],
-        'dynamic_contact_status': contact_status,
-        'hardware_in_loop_status': contract.get(
-            'hardware_in_loop', {}).get('status', 'not-run'),
+        'dynamic_contact_status': 'not-published',
+        'hardware_in_loop_status': 'not-published',
     }
-    if not include_internal_evidence:
-        report.update({
-            'runtime_validation': 'not-published',
-            'dynamic_contact_status': 'not-published',
-            'hardware_in_loop_status': 'not-published',
-        })
+    if include_internal_evidence:
+        report['reference_evidence_scope'] = 'historical-reference-only'
     return report
 
 
@@ -1274,8 +1297,7 @@ def main() -> int:
     try:
         report = validate(
             args.package_root, ros_root, description_root, args.model,
-            include_internal_evidence=(True if args.with_internal_evidence
-                                       else None))
+            include_internal_evidence=args.with_internal_evidence)
     except (AssertionError, KeyError, OSError, RuntimeError,
             ET.ParseError, ValueError) as error:
         print(

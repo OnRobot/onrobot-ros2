@@ -1,5 +1,22 @@
 {
-  "schema_version": 1,
-  "repository": "onrobot-isaac-sim",
-  "manifest_sha256": "62cbb6ff62d264ce967bf35b8b16c1ba504d1a8ed4b0d4af2fa48f4dc0494812"
+  "schema_version": 2,
+  "repository": "onrobot-isaacsim",
+  "models": {
+    "2fg7": {
+      "minimum_version": "2026.10.07_01",
+      "interface_revision": 1
+    },
+    "2fg14": {
+      "minimum_version": "2026.10.07_01",
+      "interface_revision": 1
+    },
+    "rg2": {
+      "minimum_version": "2026.10.07_01",
+      "interface_revision": 1
+    },
+    "rg6": {
+      "minimum_version": "2026.10.07_01",
+      "interface_revision": 1
+    }
+  }
 }

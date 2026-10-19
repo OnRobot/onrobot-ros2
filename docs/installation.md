@@ -9,9 +9,9 @@ for the commands. Stop if either DEB fails to install or rosdep reports a missin
 dependency. Source `install/setup.bash` in each terminal after a successful build.
 
 For separate checkouts, place `onrobot-ros2` under the workspace `src/` directory
-and supply the exact [Isaac asset dependency](../onrobot_gripper_isaac/README.md#asset-dependency).
+and supply a compatible [Isaac asset dependency](../onrobot_gripper_isaac/README.md#asset-dependency).
 Do not copy USD files from a different release into the ROS package. Archives
-already contain the pinned dependency and do not require Git.
+already contain a compatible asset dependency and do not require Git.
 
 Customer archives omit internal tests: use `-DBUILD_TESTING=OFF` as shown in
 the guide. A full developer checkout can build tests using the public SDK.

@@ -30,15 +30,16 @@ class QWidget;
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// @brief RViz panel for the product-specific realtime motion interface.
+/// @brief RViz controls for OnRobot realtime motion.
 ///
-/// Position controls stream a target until it is reached or stopped. A signed
-/// slider is neutral at center; holding it away from center publishes refreshed
-/// VELOCITY commands and releasing it publishes an ordered Stop command.
+/// Position controls repeat a target until it is reached or stopped. Holding
+/// the joystick away from its center repeats VELOCITY commands. Releasing it
+/// requests Stop before another motion command can run.
 class RealtimeControlPanel final : public rviz_common::Panel {
   Q_OBJECT
 
 public:
+  /// @cond INTERNAL
   explicit RealtimeControlPanel(QWidget *i_parent = nullptr);
   ~RealtimeControlPanel() override;
 
@@ -55,8 +56,8 @@ private:
   using RealtimeState = onrobot_gripper_msgs::msg::RealtimeState;
 
   struct SharedState {
-    // Protect typed capability/contact and realtime acknowledgement updates
-    // so readiness and Stop checks cannot combine different publications.
+    // Lock capability, contact and realtime acknowledgement updates so readiness
+    // and Stop checks use complete messages rather than partially updated fields.
     std::mutex typed_mutex;
     onrobot_gripper_msgs::msg::GripperState typed;
     std::int64_t typed_received_ns{0};
@@ -145,7 +146,7 @@ private:
   RealtimeCommand m_forceCommand;
   // Position and joystick commands are refreshed asynchronously. Capture the
   // force target when an operation starts so editing the spinbox cannot alter
-  // an already-admitted command or turn it into a zero-force request.
+  // an accepted command or turn it into a zero-force request.
   double m_positionCommandForce{30.0};
   double m_joystickForce{30.0};
   QSlider *m_joystickSlider{nullptr};
@@ -184,6 +185,7 @@ private:
   std::int64_t m_positionCommandStartedNs{0};
   RealtimeDirectionGuard m_directionGuard;
   RealtimePositionTargetTracker m_positionTracker;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_rviz_plugins

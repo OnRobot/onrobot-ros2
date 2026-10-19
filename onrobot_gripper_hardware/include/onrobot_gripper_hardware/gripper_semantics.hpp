@@ -6,12 +6,19 @@ namespace onrobot_gripper_hardware {
 
 /// @brief Product geometry needed to translate device and ROS coordinates.
 ///
-/// The firmware reports a linear mechanism coordinate in millimetres, while
-/// the URDF joint describes one finger's travel in metres. Keeping that
-/// mapping in a small ROS-independent type lets physical, fake, and simulation
-/// backends use the same coordinate contract.
+/// The device reports linear mechanism position in millimetres. The URDF joint
+/// describes one finger's travel in metres. This type converts between them
+/// without depending on ROS, so real, fake and simulation backends can use the
+/// same conversion.
 class GripperKinematics {
 public:
+  /// @brief Configure the conversion from raw stroke to one finger joint.
+  ///
+  /// @param i_rawMinimumMm Raw mechanism coordinate at minimum travel, in mm.
+  /// @param i_rawMaximumMm Raw mechanism coordinate at maximum travel, in mm.
+  /// @param i_jointUpperM Maximum travel of one URDF finger joint, in metres.
+  /// @throws std::invalid_argument If a value is not finite, raw limits are not
+  /// increasing, or joint travel is not greater than zero.
   GripperKinematics(double i_rawMinimumMm, double i_rawMaximumMm,
                     double i_jointUpperM);
 
@@ -30,12 +37,23 @@ private:
   double m_jointUpperM;
 };
 
-/// @brief Map normalized RG task travel to the Isaac bridge's joint span.
+/// @brief Convert RG aperture to the Isaac bridge's joint angle range.
 ///
 /// This simulator mapping uses the configured task and asset endpoints. The
-/// supplied physical CAD surfaces use RgCadKinematics instead.
+/// supplied CAD geometry uses RgCadKinematics instead.
 class RgVisualKinematics {
 public:
+  /// @brief Configure the aperture-to-angle mapping used by the Isaac bridge.
+  ///
+  /// @param i_minimumWidthM Minimum task aperture, in metres; must be
+  /// nonnegative.
+  /// @param i_maximumWidthM Maximum task aperture, in metres; must exceed the
+  /// minimum.
+  /// @param i_fingerJointUpperRad Finger angle limit, in radians; must be
+  /// greater than zero and less than pi/2.
+  /// @throws std::invalid_argument If a value is not finite or a limit is
+  /// invalid.
+  /// @see RgCadKinematics for the supplied physical RG CAD surfaces.
   RgVisualKinematics(double i_minimumWidthM, double i_maximumWidthM,
                      double i_fingerJointUpperRad);
 
@@ -50,20 +68,22 @@ private:
   double m_fingerJointUpperRad;
 };
 
-/// @brief Exact gap mapping for the supplied inward-facing standard RG CAD tips.
+/// @brief Convert between fingertip gap and joint angle for the standard RG CAD tips.
 ///
-/// CAD zero is not fingertip contact. This mapping includes the lateral link
-/// offset and the rubber surfaces. Firmware mechanism angle remains a separate
-/// coordinate; custom fingers require their own aperture geometry.
+/// The supplied tips face inward. A CAD joint angle of zero does not mean the
+/// fingertips touch. The calculation accounts for the sideways link offset and
+/// rubber surfaces. Device mechanism angle is a separate coordinate; custom
+/// fingers need a calculation based on their own geometry.
 class RgCadKinematics {
 public:
   /// @param i_rg6 True for RG6 geometry; false for RG2 geometry.
   explicit RgCadKinematics(bool i_rg6);
-  /// Convert measured gap in metres to CAD radians; compression shows contact.
+  /// Convert gap in metres to CAD joint angle in radians. A negative gap is
+  /// displayed as fingertip contact.
   double widthToFingerAngle(double i_widthM) const;
   /// Return signed rubber-surface gap in metres at a CAD joint angle in radians.
   double fingerAngleToWidth(double i_angleRad) const;
-  /// Offset in radians added to firmware angle to enter the CAD joint frame.
+  /// Offset added to the device angle to obtain the CAD joint angle, in radians.
   double cadZeroPhase() const;
 
 private:
@@ -74,8 +94,8 @@ private:
 
 /// @brief Remove a JointState field that contains a non-finite placeholder.
 ///
-/// JointState arrays cannot express per-joint validity. An empty array is the
-/// truthful representation when any member of that field is unavailable.
+/// A JointState array cannot mark individual joint values as unavailable.
+/// Clear the array if any value is NaN or infinity.
 /// @return true when the array was cleared.
 bool clearUnavailableJointStateField(std::vector<double> &io_values);
 

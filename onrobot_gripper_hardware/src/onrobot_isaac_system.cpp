@@ -415,6 +415,8 @@ OnRobotIsaacSystem::read(const rclcpp::Time &, const rclcpp::Duration &) {
   const bool valid = received && age <= state_timeout_;
   const bool lost = fault_pending || source_reset || (received && !valid);
   if (lost) {
+    const bool latch_fault = motion_command_seen_ || faulted_state_ > 0.5 ||
+                             fault_pending || source_reset;
     const bool had_usable_feedback = feedback_ready_;
     if (had_usable_feedback && !realtime_active_ &&
         !conventional_recovery_gate_ && std::isfinite(position_command_)) {
@@ -440,8 +442,19 @@ OnRobotIsaacSystem::read(const rclcpp::Time &, const rclcpp::Duration &) {
       feedback_loss_stop_pending_ = active_;
       feedback_loss_stop_sent_ = false;
     }
-    faulted_state_ = 1.0;
-    fault_code_state_ = source_reset || fault_pending
+    if (latch_fault && faulted_state_ == 0.0) {
+      RCLCPP_ERROR(get_logger(),
+                   "Isaac feedback %s; motion stopped. Restore valid feedback "
+                   "and request recovery through recovery_controller/recover",
+                   source_reset ? "clock reset" : fault_pending
+                       ? "is invalid" : "timed out");
+    } else if (!latch_fault && had_usable_feedback) {
+      RCLCPP_WARN(get_logger(),
+                  "Waiting for Isaac joint feedback during startup; "
+                  "motion commands are disabled until feedback returns");
+    }
+    faulted_state_ = latch_fault ? 1.0 : 0.0;
+    fault_code_state_ = !latch_fault ? 0.0 : source_reset || fault_pending
                             ? faultCode(onrobot::ErrorCode::Protocol)
                             : faultCode(onrobot::ErrorCode::Timeout);
     task_position_valid_state_ = 0.0;
@@ -454,7 +467,7 @@ OnRobotIsaacSystem::read(const rclcpp::Time &, const rclcpp::Duration &) {
     physical_velocity_state_ = nan();
     measured_mechanism_position_state_ = nan();
     measured_mechanism_velocity_state_ = nan();
-    connection_state_ = ever_received ? 1.0 : 2.0;
+    connection_state_ = latch_fault && ever_received ? 1.0 : 2.0;
     updateDiagnosticStates();
     return hardware_interface::return_type::OK;
   }
@@ -489,9 +502,10 @@ OnRobotIsaacSystem::read(const rclcpp::Time &, const rclcpp::Duration &) {
     measured_mechanism_velocity_state_ = nan();
   }
   if (!feedback_seeded_) {
-    if (!std::isfinite(conventional_sequence_command_)) {
-      position_command_ = position_state_;
-    }
+    // Commands queued before feedback cannot become new motion merely because
+    // a first (or resumed startup) sample arrived. Seed only a measured hold.
+    position_command_ = position_state_;
+    startup_hold_position_ = position_state_;
     realtime_active_ = false;
     realtime_mode_ = -1;
     realtime_mode_command_ = nan();
@@ -575,6 +589,13 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
         std::isfinite(position_command_)) {
       retired_position_command_ = position_command_;
     }
+    // Mirror the conventional admission protocol: a negative event rejects
+    // this goal. Retaining its positive identity would replay it on reconnect.
+    if (std::isfinite(conventional_sequence_command_) &&
+        conventional_sequence_command_ > 0.0) {
+      conventional_sequence_command_ = -conventional_sequence_command_;
+    }
+    realtime_sequence_command_ = nan();
     if (feedback_loss_stop_pending_ && !feedback_loss_stop_sent_) {
       // Do not send a stale position target after feedback loss. One explicit
       // zero velocity lets the simulator stop, then the watchdog is allowed to
@@ -595,6 +616,7 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     (void)sequence;
     realtime_active_ = false;
     position_command_ = position_state_;
+    startup_hold_position_ = position_state_;
     conventional_sequence_command_ = nan();
     force_conventional_command_ = false;
     realtime_sequence_command_ = nan();
@@ -605,7 +627,8 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     stop_sequence_command_ = nan();
   }
 
-  if (!stop_issued && std::isfinite(conventional_sequence_command_)) {
+  if (!stop_issued && std::isfinite(conventional_sequence_command_) &&
+      conventional_sequence_command_ >= 0.0) {
     uint64_t sequence = 0;
     if (!decodeCommandSequence(conventional_sequence_command_, sequence)) {
       conventional_sequence_command_ = nan();
@@ -613,6 +636,7 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     }
     (void)sequence;
     force_conventional_command_ = true;
+    motion_command_seen_ = true;
     conventional_sequence_command_ = nan();
   }
 
@@ -651,18 +675,20 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
           std::isfinite(realtime_task_position_command_) &&
           std::isfinite(realtime_task_velocity_command_) &&
           std::isfinite(realtime_force_command_) &&
-          (rg_model_ ||
+          (rg_model_ || realtime_mode_ == 1 ||
            (realtime_force_command_ >= realtime_force_min_ &&
             realtime_force_command_ <= realtime_force_max_));
       if (mode_integral && valid_payload &&
           (realtime_mode_ == 0 || realtime_mode_ == 1)) {
         requested_command_sequence_state_ = static_cast<double>(sequence);
         realtime_active_ = true;
+        motion_command_seen_ = true;
         applied_command_sequence_state_ = static_cast<double>(sequence);
       } else if (mode_integral && realtime_mode_ == -1) {
         requested_command_sequence_state_ = static_cast<double>(sequence);
         realtime_active_ = false;
         position_command_ = position_state_;
+        startup_hold_position_ = position_state_;
         applied_command_sequence_state_ = static_cast<double>(sequence);
       } else {
         // Reject unsupported modes and incomplete payloads instead of silently
@@ -683,6 +709,11 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
         feedback_ready_ = false;
         feedback_loss_stop_pending_ = active_;
         feedback_loss_stop_sent_ = false;
+        RCLCPP_ERROR(get_logger(),
+                     "Isaac rejected realtime mode %g with force %g N; "
+                     "use a supported position/velocity command, then request "
+                     "recovery through recovery_controller/recover",
+                     realtime_mode_command_, realtime_force_command_);
       }
       last_realtime_sequence_ = sequence;
       realtime_sequence_command_ = nan();
@@ -721,6 +752,10 @@ OnRobotIsaacSystem::write(const rclcpp::Time &, const rclcpp::Duration &) {
     if (conventional_recovery_gate_ && std::isfinite(position_command_)) {
       conventional_recovery_gate_ = false;
       retired_position_command_ = nan();
+    }
+    if (!stop_issued && std::isfinite(position_command_) &&
+        position_command_ != startup_hold_position_) {
+      motion_command_seen_ = true;
     }
     publishPosition(stop_issued ? position_state_ : position_command_);
     active_mode_state_ =

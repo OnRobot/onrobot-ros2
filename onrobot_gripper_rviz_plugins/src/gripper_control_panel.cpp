@@ -308,9 +308,15 @@ GripperControlPanel::GripperControlPanel(QWidget *i_parent)
         speed_now_ns - m_sharedState->speed_confirmed_ns.load() <
             kSpeedPollIntervalNs + kSpeedReadTimeoutNs;
     const bool command_ready =
-        state_fresh && standard_ready && has_limits && !safety_blocked && speed_ready;
+        state_fresh && standard_ready && has_limits && !safety_blocked && speed_ready &&
+        !m_sharedState->faulted.load();
     setCommandWidgetsEnabled(command_ready);
     updateSpeedPanel(command_ready);
+
+    if (m_sharedState->faulted.load()) {
+      setStatus("FAULT: restore valid state, then call recovery_controller/recover");
+      return;
+    }
 
     if (has_measurement && !state_fresh) {
       setStatus(QString("CONNECTION LOST: last state %1 ms ago")
@@ -532,6 +538,8 @@ void GripperControlPanel::onInitialize() {
           m_gripperStateTopic, rclcpp::SensorDataQoS(),
           [state](
               const onrobot_gripper_msgs::msg::GripperState::SharedPtr msg) {
+            state->faulted.store(msg->fault_code != 0 || msg->connection_state ==
+                onrobot_gripper_msgs::msg::GripperState::CONNECTION_FAULTED);
             state->safety_1_pushed.store(msg->safety_1_pushed);
             state->safety_1_triggered.store(msg->safety_1_triggered);
             state->safety_2_pushed.store(msg->safety_2_pushed);
@@ -563,6 +571,11 @@ bool GripperControlPanel::hasFreshMeasurement() const {
 }
 
 void GripperControlPanel::sendGoal(double i_positionM) {
+  if (m_sharedState && m_sharedState->faulted.load()) {
+    setCommandWidgetsEnabled(false);
+    setStatus("FAULT: restore valid state, then call recovery_controller/recover");
+    return;
+  }
   if (m_sharedState && m_sharedState->speed_control_available.load() &&
       steadyNowNs() - m_sharedState->speed_confirmed_ns.load() >=
           kSpeedPollIntervalNs + kSpeedReadTimeoutNs) {
@@ -657,7 +670,7 @@ void GripperControlPanel::setStatus(const QString &i_text) {
     m_statusLabel->setText(i_text);
     updateWrappedLabelHeight(m_statusLabel);
     if (i_text.startsWith("DISCONNECTED") ||
-        i_text.startsWith("CONNECTION LOST")) {
+        i_text.startsWith("CONNECTION LOST") || i_text.startsWith("FAULT:")) {
       m_statusLabel->setStyleSheet(
           "QLabel { color: #d32f2f; font-weight: bold; }");
     } else if (i_text.startsWith("Connected")) {

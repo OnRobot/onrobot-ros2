@@ -7,39 +7,40 @@
 
 namespace onrobot_gripper_description {
 
-/// Inclusive interval for one coordinate, expressed in that coordinate's unit.
+/// Allowed range for a coordinate, including both endpoints, in its own unit.
 struct Domain {
-  /// Lower inclusive bound of the interval.
+  /// Minimum allowed value.
   double minimum{0.0};
-  /// Upper inclusive bound of the interval.
+  /// Maximum allowed value.
   double maximum{0.0};
 };
 
-/// Mapping law used to relate a mechanism coordinate to a joint coordinate.
+/// Formula used to convert mechanism position to joint position.
 enum class LawType {
-  /// Linear stroke law used by 2FG profiles.
+  /// Linear stroke formula used by 2FG profiles.
   TwoFingerLinear,
-  /// Sine geometry law used by RG profiles.
+  /// Sine formula used by RG profiles.
   RgSine
 };
 
-/// Validated, immutable map between mechanism, joint, and task coordinates.
+/// Validated conversion between mechanism position, joint position and aperture.
 ///
 /// The mechanism coordinate is a raw linear stroke in metres for 2FG profiles
-/// or a measured angle in radians for RG profiles. The joint coordinate uses
-/// the same units as the mechanism coordinate; the aperture is in metres.
+/// or a measured angle in radians for RG profiles. Joint position uses the
+/// same units as mechanism position; aperture is in metres. The conversion
+/// settings cannot be changed after construction.
 class KinematicMap {
 public:
-  /// Construct a map and validate all domains and law coefficients.
+  /// Construct a coordinate conversion and validate its ranges and coefficients.
   ///
-  /// For a 2FG law, `m0` is the mechanism intercept in metres and the RG
-  /// geometry parameters are unused and must be zero. For an RG law, `m0` is
+  /// For the 2FG formula, `m0` is the mechanism intercept in metres and the RG
+  /// geometry parameters are unused and must be zero. For the RG formula, `m0` is
   /// unused and must be zero; `length`, `thickness`, and `compensation` are
   /// metres, while `scale` is radians per joint-radian and `theta_reference`
   /// is radians. Offsets are metres.
   ///
-  /// @throws ProfileError if a value is non-finite, a domain is empty, or the
-  /// map is inconsistent with its law.
+  /// @throws ProfileError if a value is NaN or infinity, a range is empty, or
+  /// the settings do not match the selected formula.
   KinematicMap(LawType law, Domain mechanism_domain, Domain joint_domain,
                Domain aperture_domain, double m0, double length,
                double thickness, double compensation, double scale,
@@ -47,38 +48,38 @@ public:
                double right_offset);
 
   /// Convert a mechanism coordinate to the physical joint coordinate.
-  /// @throws ProfileError if `mechanism` is non-finite or outside its domain.
+  /// @throws ProfileError if `mechanism` is NaN, infinity or outside its allowed range.
   double mechanismToJoint(double mechanism) const;
 
   /// Convert a physical joint coordinate to the mechanism coordinate.
-  /// @throws ProfileError if `joint` is non-finite or outside its domain.
+  /// @throws ProfileError if `joint` is NaN, infinity or outside its allowed range.
   double jointToMechanism(double joint) const;
 
   /// Convert a physical joint coordinate to task aperture in metres.
-  /// @throws ProfileError if `joint` is non-finite or outside its domain.
+  /// @throws ProfileError if `joint` is NaN, infinity or outside its allowed range.
   double jointToAperture(double joint) const;
 
   /// Convert task aperture in metres to the physical joint coordinate.
-  /// @throws ProfileError if `aperture` is non-finite or outside its domain.
+  /// @throws ProfileError if `aperture` is NaN, infinity or outside its allowed range.
   double apertureToJoint(double aperture) const;
 
   /// Return d(aperture)/d(joint) at a valid physical joint coordinate.
   ///
   /// The result is metres per metre for 2FG and metres per radian for RG.
-  /// @throws ProfileError if `joint` is outside its domain or the Jacobian is
+  /// @throws ProfileError if `joint` is outside its allowed range or the Jacobian is
   /// singular.
   double apertureJacobian(double joint) const;
 
-  /// Return the mapping law.
+  /// Return the selected conversion formula.
   LawType law() const noexcept { return law_; }
 
-  /// Return the inclusive mechanism-coordinate domain.
+  /// Return the allowed mechanism range, including both endpoints.
   const Domain &mechanismDomain() const noexcept { return mechanism_domain_; }
 
-  /// Return the inclusive physical-joint-coordinate domain.
+  /// Return the allowed physical joint range, including both endpoints.
   const Domain &jointDomain() const noexcept { return joint_domain_; }
 
-  /// Return the inclusive task-aperture domain in metres.
+  /// Return the allowed aperture range in metres, including both endpoints.
   const Domain &apertureDomain() const noexcept { return aperture_domain_; }
 
   /// Return the 2FG mechanism intercept `m0`, in metres.
@@ -127,18 +128,18 @@ public:
   using std::runtime_error::runtime_error;
 };
 
-/// A validated schema-v2 profile and its resolved numeric map.
+/// A validated schema-v2 profile with its calculated coordinate conversion.
 class GripperProfile {
 public:
-  /// Construct a profile from metadata, a map, and its safe aperture domain.
-  /// The safe aperture must be within the map's inclusive aperture domain;
-  /// this check does not admit an epsilon outside that domain.
+  /// Construct a profile from metadata, a coordinate map and a safe aperture range.
+  /// The safe range must fit within the map's aperture range, including its
+  /// endpoints. Even a small amount outside that range is rejected.
   /// @throws ProfileError if the safe aperture is invalid or outside the map.
   GripperProfile(std::string name, std::string model, int revision,
                  std::string geometry_identity, std::string source,
                  KinematicMap map, Domain safe_aperture);
 
-  /// Load and validate a profile YAML file, including bounded inheritance.
+  /// Load and validate a profile YAML file, limiting the depth of inherited profiles.
   /// @throws ProfileError if the file cannot be read or fails schema checks.
   static GripperProfile load(const std::string &path);
 
@@ -166,24 +167,24 @@ public:
   /// Return the source label supplied when the profile was loaded.
   const std::string &source() const noexcept { return source_; }
 
-  /// Return the deterministic SHA-256 identity of the resolved profile.
+  /// Return the SHA-256 hash of the resolved profile. The same data gives the same hash.
   const std::string &profileHash() const noexcept { return profile_hash_; }
 
-  /// Return the resolved mechanism/joint/aperture coordinate map.
+  /// Return the calculated conversion between mechanism, joint and aperture coordinates.
   const KinematicMap &map() const noexcept { return map_; }
 
-  /// Return the inclusive safe task-aperture domain in metres.
+  /// Return the safe aperture range in metres, including both endpoints.
   const Domain &safeAperture() const noexcept { return safe_aperture_; }
 
-  /// Return the physical joint interval corresponding to the safe aperture.
+  /// Return the physical joint range for the safe aperture range.
   Domain safeJoint() const;
 
-  /// Convert a planning target without admitting overlapping fingertip poses.
-  /// @throws ProfileError for non-finite or out-of-safe-domain input.
+  /// Convert a planning target, rejecting positions where fingertips would overlap.
+  /// @throws ProfileError for NaN, infinity or a value outside the safe range.
   double planningJointToAperture(double joint) const;
 
   /// Convert a safe aperture target into its physical planning coordinate.
-  /// @throws ProfileError for non-finite or out-of-safe-domain input.
+  /// @throws ProfileError for NaN, infinity or a value outside the safe range.
   double apertureToPlanningJoint(double aperture) const;
 
   /// Serialize resolved data as stable YAML with a fixed key order and hash.

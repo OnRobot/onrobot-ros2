@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_gripper_hardware</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <description>Physical, deterministic fake, and Isaac Sim ros2_control hardware plugins for OnRobot grippers.</description>
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>
   <license>BSD-3-Clause</license>

@@ -16,7 +16,7 @@ the task-only `grip_stroke` leaf: it does not move collision geometry.
 When composing an application, include the supplied physical joint and follower
 mimics, the matching profile and action adapter. Preserve the independent
 task/physical endpoints and correct prefixes. See the
-[integration contract](../onrobot_gripper_moveit_config/README.md#add-to-an-application)
+[integration instructions](../onrobot_gripper_moveit_config/README.md#add-to-an-application)
 for controller configuration, supported fields and collision exclusions.
 
 The standalone example supports real and fake backends, not the Isaac adapter

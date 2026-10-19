@@ -9,11 +9,11 @@
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// The quality of the measured force at one typed-state sample.
+/// Whether a GripperState sample contains a usable force measurement.
 ///
-/// A supported device can still produce invalid or stale force data.  Those
-/// cases intentionally remain distinct from an RG/3FG device for which a
-/// measured Newton value is not part of the public state contract.
+/// A device with force feedback can still report invalid or old measurements.
+/// These cases are separate from RG and 3FG models, which do not supply a
+/// measured force in newtons through this interface.
 enum class ForceSampleQuality : std::uint8_t {
   Valid,
   Invalid,
@@ -21,6 +21,7 @@ enum class ForceSampleQuality : std::uint8_t {
   Unavailable,
 };
 
+/// @cond INTERNAL
 struct ForceHistorySample {
   std::int64_t stamp_ns{0};
   std::int64_t received_steady_ns{0};
@@ -36,6 +37,7 @@ struct ForceHistorySample {
   std::uint16_t fault_code{0};
   bool clock_rollback_before{false};
 };
+/// @endcond
 
 inline ForceSampleQuality forceSampleQuality(
     const ForceHistorySample &i_sample) noexcept {
@@ -51,13 +53,13 @@ inline ForceSampleQuality forceSampleQuality(
   return ForceSampleQuality::Valid;
 }
 
-/// A small, deduplicating buffer suitable for a GUI consumer.
+/// @cond INTERNAL
+/// A small buffer for plotting force history without duplicate samples.
 ///
-/// Callbacks can publish the same physical sample more than once when a
-/// broadcaster rate is higher than the device exchange rate.  A nonzero
-/// sample sequence is therefore used as the primary deduplication key.  A
-/// timestamp rollback is retained as an explicit boundary so replay loops and
-/// simulation resets cannot silently join two unrelated traces.
+/// A broadcaster can publish faster than the device supplies new measurements.
+/// The buffer uses nonzero sample sequence numbers to detect duplicates. If
+/// timestamps go backwards, it marks a break in the trace. This prevents a
+/// looped recording or simulation reset from joining unrelated measurements.
 class ForceHistoryBuffer {
 public:
   explicit ForceHistoryBuffer(std::size_t i_max_samples = 1800)
@@ -94,10 +96,9 @@ public:
 
   /// Mark the latest supported measurement stale once the state stream stops.
   ///
-  /// Receipt time is deliberately monotonic-clock time.  The ROS clock may
-  /// pause, jump backwards while a bag loops, or not exist at all on a live
-  /// system.  A missing publisher must never leave a historical force value
-  /// looking live merely because no newer message arrived to replace it.
+  /// Uses a monotonic clock to measure time since receipt. The ROS clock may
+  /// pause, jump backwards during replay, or be unavailable. When publication
+  /// stops, the last value must be marked stale even if no new message arrives.
   bool markLatestStaleIfExpired(std::int64_t i_now_steady_ns,
                                 std::int64_t i_max_age_ns) noexcept {
     if (m_samples.empty() || i_now_steady_ns <= 0 || i_max_age_ns <= 0) {
@@ -117,6 +118,7 @@ private:
   std::size_t m_max_samples;
   std::deque<ForceHistorySample> m_samples;
 };
+/// @endcond
 
 inline const char *forceSampleQualityName(ForceSampleQuality i_quality) {
   switch (i_quality) {

@@ -5,7 +5,7 @@ find_package(ament_cmake REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 set(ONROBOT_ISAAC_ASSET_REPOSITORY "" CACHE PATH
-  "Directory containing the pinned non-ROS onrobot-isaac-sim repository")
+  "Directory containing a compatible non-ROS onrobot-isaacsim repository")
 set(asset_path_args --package-root "${CMAKE_CURRENT_SOURCE_DIR}")
 if(ONROBOT_ISAAC_ASSET_REPOSITORY)
   list(APPEND asset_path_args --asset-repository "${ONROBOT_ISAAC_ASSET_REPOSITORY}")
@@ -28,6 +28,7 @@ endif()
 install(DIRECTORY "${asset_repository}/assets" DESTINATION share/${PROJECT_NAME}
   PATTERN "__pycache__" EXCLUDE
   PATTERN "*.pyc" EXCLUDE)
+install(FILES "${asset_repository}/asset_manifest.json" DESTINATION share/${PROJECT_NAME})
 
 install(
   DIRECTORY config doc resource

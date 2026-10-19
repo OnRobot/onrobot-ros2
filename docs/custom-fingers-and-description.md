@@ -2,8 +2,8 @@
 
 Product packages provide reusable simplified and detailed Xacro macros,
 meshes, SRDF, and RViz configuration. The shared
-`onrobot_gripper_description` package owns finger-profile and coordinate
-semantics.
+`onrobot_gripper_description` package defines finger profiles and how joint
+positions relate to aperture.
 
 For custom fingers, set:
 

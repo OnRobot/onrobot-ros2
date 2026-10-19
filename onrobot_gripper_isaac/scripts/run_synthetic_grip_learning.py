@@ -28,7 +28,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from isaac_model_contract import asset_repository_root
+from isaac_model_contract import asset_repository_root, load_contract
 
 from synthetic_grip_learning import (  # noqa: E402
     CONTROLLED_EFFORT_DESIGN, DEFAULT_PREDICTED_SUCCESS_THRESHOLD,
@@ -92,7 +92,7 @@ def _default_paths(model: str) -> tuple[Path, Path, Path]:
     runner = installed_runner if installed_runner.is_file() else \
         package / 'scripts/run_physical_motion_showcase.py'
     return (
-        asset_repository_root(package) / 'assets' / model / f'onrobot_{model}.usda',
+        asset_repository_root(package) / load_contract(model)['asset_entrypoint'],
         package / 'config/payload_retention_profiles.json',
         runner,
     )

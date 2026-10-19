@@ -11,16 +11,17 @@ ros2 launch onrobot_gripper_demos showcase.launch.py \
 
 The launcher accepts model values `2fg7`, `2fg14`, `rg2`, `rg6`, `3fg15`, and
 `3fg25`. The 2FG and RG models support `control:=conventional` and
-`control:=realtime`. Three-finger conventional native external-diameter control
-is available for evaluation only and requires the physical
+`control:=realtime`. Conventional control of three-finger grippers uses the external grip diameter.
+It is available for evaluation only and requires the physical
 `fingertip_position` setting.
 The showcase opens RViz with the matching control panel already configured.
 Realtime layouts provide aperture Open, Close, and target controls together
-with the model-aware velocity joystick.
+with the velocity joystick for the selected model.
 
-For 2FG conventional motion, select the device speed percentage at launch;
-the default is 50% and valid values are 1–100. This is a native device
-percentage, not an SI velocity guarantee:
+For 2FG conventional motion, the panel lets you set speed in m/s. The
+`conventional_speed_percent` launch argument sets the default for commands
+that omit velocity. It accepts 1-100 and defaults to 50%. The percentage
+does not guarantee a particular speed in m/s:
 
 ```bash
 ros2 launch onrobot_gripper_demos showcase.launch.py \
@@ -33,13 +34,13 @@ If a lower-specification graphics system needs a lighter 2FG7 body visual, add
 finger and fingertip visuals, collision meshes, joints, and control behavior
 are unchanged. The default is `visual_detail:=detailed`.
 
-The package only composes existing drivers, controllers, descriptions, and
-RViz panels. It does not access a gripper outside `ros2_control`.
+The package starts the existing drivers, controllers, descriptions, and
+RViz panels together. It does not access a gripper outside `ros2_control`.
 
 ## Record and replay a session
 
 For a bug investigation, use the
-[diagnostic recording guide](../onrobot_gripper_bringup/doc/REPORTING_ISSUES.md).
+[diagnostic recording guide](https://github.com/OnRobot/onrobot-ros2/blob/main/onrobot_gripper_bringup/doc/REPORTING_ISSUES.md).
 It also captures raw feedback and command topics, so it is separate from the
 state-only playback workflow below.
 
@@ -52,14 +53,13 @@ running namespaced `robot_state_publisher`, its TF frame prefix and base
 transform, firmware/profile identity observed at startup, and hashes for the
 ROS source, asset layers, and Tool API library when those identities are
 available. An unavailable identity is recorded as unknown; it is never guessed.
-It also contains compact per-topic hashes of the serialized recorded state, so
-replay refuses a bag whose saved state streams no longer match the session.
-The recorder writes a `qos_profile_overrides.yaml` sidecar and passes it to
+It also stores a checksum for each recorded state topic. Replay refuses a bag
+if its state messages no longer match these checksums.
+The recorder writes a `qos_profile_overrides.yaml` file and passes it to
 rosbag2. State topics are recorded with a best-effort, volatile sensor-data
 subscription so a filtered `/joint_states` publisher is not silently omitted
-when recording starts before or after the showcase. This changes only the
-recorder's read-side QoS; it does not change the live publishers or replay
-allowlist.
+when recording starts before or after the showcase. These QoS settings affect only the recorder’s subscriptions. Publishers and
+the list of topics allowed during replay stay the same.
 Use `--description-file` only when recording from an existing exact expanded
 URDF instead of a running showcase.
 
@@ -92,7 +92,7 @@ ros2 run onrobot_gripper_demos replay_gripper_session \
 Replay opens a temporary RViz layout containing the robot model and the
 read-only **Force & State History** panel. It plays the saved joint and state
 topics with the recorded ROS clock; it does not start `ros2_control` and does
-not include an actionable control panel. Useful presentation options are:
+not include a panel that can send commands. Useful presentation options are:
 
 ```bash
 # Half speed, with the session repeating until Ctrl-C.
@@ -115,8 +115,7 @@ measured-force trace.
 
 The measurement command checks the complete path from a ROS command through
 `ros2_control` and Modbus RTU to fresh measured state. It also checks automatic
-Stop on stale input, explicit Stop, and a conventional-to-realtime controller
-round trip. The gripper moves within the middle 20% of its live aperture range.
+Stop on stale input, explicit Stop, and a switch from conventional to realtime control and back. The gripper moves within the middle 20% of its live aperture range.
 Clear and secure the fixture before running it.
 
 Start the showcase with matching device, controller, and state rates:

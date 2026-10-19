@@ -1,8 +1,10 @@
-# OnRobot gripper description contract
+<a id="onrobot-gripper-description-contract"></a>
 
-This package owns the model-neutral description contract used by the supported
-parallel grippers. Model packages continue to own their URDF/Xacro and mesh
-assets, and application packages own any custom-finger geometry they add.
+# OnRobot gripper descriptions
+
+This package defines shared finger profiles and coordinate mappings for the
+supported parallel grippers. Each model package contains its URDF/Xacro and
+meshes. Put custom-finger geometry in your application package.
 
 ## Coordinates
 
@@ -26,7 +28,7 @@ and model-specific scale. Do not infer a current raw range or one-jaw travel
 from the model name: use the selected model and finger profile limits.
 MoveIt plans the physical leader joint (`finger_stroke` for 2FG or
 `finger_joint` for RG) and converts targets through the separate physical-joint
-action adapter. See the [MoveIt integration](../onrobot_gripper_moveit_config/README.md).
+action adapter. See the [MoveIt integration](https://github.com/OnRobot/onrobot-ros2/blob/main/onrobot_gripper_moveit_config/README.md).
 `grip_stroke` remains the semantic task coordinate used by standard ROS
 control; simulation backends must not treat it as a second independently driven
 articulation.
@@ -54,9 +56,9 @@ unchanged. The default is `true`, so existing descriptions retain their
 current geometry.
 
 The installed, tested example
-`examples/custom_fingers/2fg7_custom_fingers.urdf.xacro` shows the intended ownership
-boundary: it includes the OnRobot model with standard fingertips disabled,
-then defines consumer-owned links and fixed joints whose parents are
+`examples/custom_fingers/2fg7_custom_fingers.urdf.xacro` includes the OnRobot model
+with standard fingertips disabled. It then defines the application's links
+and fixed joints whose parents are
 `left_finger_mount` and `right_finger_mount`. It is deliberately a structural
 example rather than a production finger design.
 
@@ -71,10 +73,10 @@ reject an unsupported `schema_version` and identify a profile by both `name`
 and `revision` when reproducibility matters. The supplied stock profile files
 use `schema_version: 1` and describe device/finger metadata. The separate
 `config/planning_profiles` files use schema 2 and are consumed by
-`GripperProfile` and the physical-joint action adapter. These profiles bind the
-stock mesh's physical coordinates to its useful aperture without rescaling the
+`GripperProfile` and the physical-joint action adapter. These profiles map the
+stock mesh's physical coordinates to its aperture without rescaling the
 mechanism. `resolve_gripper_profile --profile <file>` reports the resolved
-domains and content hash; add `--joint <q>` or `--aperture <metres>` for a
+coordinate ranges and content hash; add `--joint <q>` or `--aperture <metres>` for a
 checked conversion. Custom runtime profiles require matching geometry and
 independent validation, not just edited endpoint numbers.
 

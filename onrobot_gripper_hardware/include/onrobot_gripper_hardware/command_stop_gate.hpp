@@ -10,11 +10,12 @@
 
 namespace onrobot_gripper_hardware {
 
+/// @cond INTERNAL
 // Keep the same Stop handle (and mutex) in the resource manager and backend.
-// Only Stop may be written from the action executor; motion outputs belong to
-// the manager update thread. Holding this gate through nonblocking admission
-// orders a callback's Stop against an in-progress write. Neither side waits on
-// transport I/O. A contended backend retries on its next write cycle.
+// Only Stop may be written from the action executor; the manager update thread
+// writes motion commands. Hold this lock while trying to queue a command so a
+// callback's Stop cannot race with a backend write. Neither side waits for
+// device communication. If the lock is busy, the backend retries next cycle.
 class CommandStopGate {
 public:
   std::vector<hardware_interface::CommandInterface::SharedPtr> export_interfaces(
@@ -42,5 +43,6 @@ private:
   hardware_interface::CommandInterface::SharedPtr stop_;
   std::shared_mutex unused_;
 };
+/// @endcond
 
 } // namespace onrobot_gripper_hardware

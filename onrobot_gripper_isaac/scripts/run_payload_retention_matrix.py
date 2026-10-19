@@ -113,7 +113,7 @@ def main() -> int:
     parser.add_argument('--config', type=Path)
     parser.add_argument('--runner', type=Path)
     parser.add_argument('--validator', type=Path)
-    parser.add_argument('--isaac-version', default='6.0.1')
+    parser.add_argument('--isaac-version', default='6.1.0')
     parser.add_argument(
         '--continue-on-failure', action='store_true',
         help='run later cases after a failed process (validation still fails)')

@@ -24,12 +24,12 @@ aperture in metres; `command.name` is `[grip_stroke]`.
 supplies valid aperture limits; applications must not infer them from the model
 name. Supported 2FG conventional controllers accept one positive maximum
 aperture speed in `command.velocity` (m/s). See the
-[action contract](../../onrobot_gripper_controllers/README.md) for conversion
-and omission semantics. Other conventional controllers reject nonempty velocity.
+[action reference](../../onrobot_gripper_controllers/README.md) for the conversion
+and the behavior when velocity is omitted. Other conventional controllers reject nonempty velocity.
 
 The conventional controller exposes `conventional_speed_control` as a fixed
 capability flag and `conventional_speed_percent` as an integer
-setting from 1–100. Runtime parameter updates are supported only when the
+setting in the range 1-100. Runtime parameter updates are supported only when the
 capability is true, affect future goals, and are rejected while motion or a
 Stop handoff is active. The 2FG conventional RViz panel sends an explicit
 per-goal SI speed instead; see the
@@ -66,7 +66,7 @@ realtime control.
 | Simulation clock | `rosgraph_msgs/msg/Clock` | Subscribed by ROS nodes | `/clock` | `use_sim_time` |
 
 See [message fields](messages.md) and [launch parameters](launch-parameters.md)
-for the complete data and configuration contracts.
+for all message fields and configuration options.
 
 MoveIt uses a separate `/physical_gripper_controller/gripper_cmd` action
 with physical-joint coordinates, not task aperture. See the

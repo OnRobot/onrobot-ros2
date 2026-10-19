@@ -5,9 +5,9 @@
 
 namespace onrobot_gripper_msgs {
 
-/// Names and stable positions of the optional detailed device diagnostics
-/// exported by the hardware adapters.  The values are state interfaces so the
-/// standard GripperStateBroadcaster can publish them without owning device I/O.
+/// Names and fixed ordering of the optional device diagnostic state interfaces.
+/// Hardware adapters supply the values. GripperStateBroadcaster publishes them
+/// without communicating with the device.
 enum class DiagnosticInterface : std::size_t {
   StatusValid,
   RawStatus,

@@ -9,7 +9,7 @@
 
 namespace onrobot_gripper_msgs {
 
-/// Bounded, allocation-free firmware text decoded from numeric state interfaces.
+/// Firmware identity text in a fixed buffer, built from numeric state interfaces.
 struct FirmwareIdentityText {
   /// Version and optional source hash; only the first size bytes are text.
   std::array<char, 64> data{};
@@ -17,7 +17,8 @@ struct FirmwareIdentityText {
   std::size_t size{0};
 };
 
-/// Format observed identity; reject invalid flags, ranges and source-hash words.
+/// Format device identity without allocating memory. Reject invalid flags,
+/// values outside their allowed ranges, and invalid source-hash parts.
 inline FirmwareIdentityText firmwareIdentityText(
     const std::array<double, kDiagnosticInterfaceCount> &values) noexcept {
   FirmwareIdentityText result;

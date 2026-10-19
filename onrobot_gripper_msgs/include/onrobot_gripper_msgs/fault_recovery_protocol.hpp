@@ -41,12 +41,14 @@ inline bool validSequence(double value, bool allow_zero = true) noexcept {
          value <= static_cast<double>(maximum_sequence) &&
          std::floor(value) == value;
 }
-// Owner: synchronous hardware read/update/write loop. Controller lifecycle
-// changes must not reset retained outcomes. Counters are not operation results.
+/// @cond INTERNAL
+// The synchronous hardware read/update/write loop owns this state. Controller
+// lifecycle changes must not reset stored results. Counters do not indicate
+// whether a recovery operation succeeded.
 struct State {
-  // Physical RG backends require safety samples; kinematics-only simulation
-  // does not model physical switches. This is backend metadata, not an
-  // override.
+  // Physical RG backends require safety samples; simulation of joint motion
+  // does not model physical switches. The backend sets this field to describe
+  // its capabilities. It is not a user override.
   std::array<double, Count> values{version, 0, 0, 0, 0, 0, 0};
   void accept(uint64_t sequence) noexcept {
     values[Ready] = 0;
@@ -62,4 +64,5 @@ struct State {
     values[Ready] = 0;
   }
 };
+/// @endcond
 } // namespace onrobot_gripper_msgs::recovery

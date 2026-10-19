@@ -26,6 +26,6 @@ then choose the guide for your application.
 - [RViz panels](../onrobot_gripper_rviz_plugins/README.md)
 - [Description profiles](../onrobot_gripper_description/README.md)
 
-Package `doc/` directories also provide rosdoc2/Sphinx documentation. They
-retain the detailed procedures linked here; the task guides are navigation
-and user workflows, not a second set of interface definitions.
+Package `doc/` directories contain the detailed procedures used to build the
+rosdoc2/Sphinx documentation. Follow the links above to find the guide or
+reference for your task.

@@ -17,33 +17,55 @@
 
 namespace onrobot_gripper_hardware {
 
-/// Deterministic model-aware fake for the public parallel-gripper contract.
+/// Fake hardware for testing parallel-gripper control without a device.
 ///
-/// Unlike GenericSystem, this backend maps the task aperture to the state-only
-/// physical finger/linkage joint used by the detailed URDF. It also consumes the
-/// resource-claimed 2FG realtime interfaces, so real and fake launch modes
-/// exercise the same controller ownership and visualization path.
+/// Converts task aperture to the physical finger or linkage joint shown in the
+/// URDF. It accepts 2FG realtime commands through the same interfaces as the
+/// real backend. The same controller access rules and visualization therefore
+/// apply to both backends, and fake motion is repeatable.
 class OnRobotParallelGripperFakeSystem final
     : public hardware_interface::SystemInterface {
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(OnRobotParallelGripperFakeSystem)
 
+  /// @brief Initialize model coordinates and fake motion
+  /// settings.
+  ///
+  /// Reads the supplied hardware description and returns ERROR for unsupported
+  /// models, invalid parameters or incomplete interfaces.
   hardware_interface::CallbackReturn
   on_init(const hardware_interface::HardwareComponentInterfaceParams &params)
       override;
+  /// @brief Expose simulated joint positions and model state.
+  ///
+  /// Uses the same interface names as the real backend. The fake backend does
+  /// not measure contact force.
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() override;
+  /// @brief Expose shared motion, Stop and recovery handles for fake hardware.
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override;
+  /// @brief Initialize a hold at the current simulated position.
+  ///
+  /// Clears earlier command sequences and velocity targets.
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Disable simulated motion and keep the current position.
   hardware_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Refresh fake-backend recovery readiness.
+  ///
+  /// Motion advances in write(), not in this call.
   hardware_interface::return_type
   read(const rclcpp::Time &, const rclcpp::Duration &) override;
+  /// @brief Process commands and advance the simulated motion.
+  ///
+  /// Uses period in seconds to update motion. Handles Stop, recovery and
+  /// configured stall behavior without physical contact simulation.
   hardware_interface::return_type
   write(const rclcpp::Time &, const rclcpp::Duration &period) override;
 
+  /// @cond INTERNAL
 private:
   onrobot_gripper_msgs::recovery::State recovery_state_;
   bool recovery_lifecycle_active_{false};
@@ -134,6 +156,7 @@ private:
   double maximum_task_aperture_state_{0.0};
   std::array<double, onrobot_gripper_msgs::kDiagnosticInterfaceCount>
       diagnostic_states_{};
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_hardware

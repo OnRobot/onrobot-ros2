@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -168,7 +169,7 @@ def _git_identity(root: Path, label: str) -> dict[str, object]:
 
 
 def _asset_identity(model: str) -> dict[str, object]:
-    """Read the model contract without making a release claim."""
+    """Record the selected asset package and actual bytes, without a test claim."""
     source_root = Path(__file__).resolve().parents[2]
     candidates = [
         source_root / 'onrobot_gripper_isaac' / 'config' /
@@ -195,19 +196,34 @@ def _asset_identity(model: str) -> dict[str, object]:
         'asset_entrypoint': contract.get('asset_entrypoint', 'unknown'),
         'contract_sha256': _sha256(contract_path),
     }
-    entrypoint = contract.get('asset_entrypoint')
-    if isinstance(entrypoint, str):
-        entrypoint_path = asset_root / entrypoint
-        identity['entrypoint_sha256'] = (
-            _sha256(entrypoint_path) if entrypoint_path.is_file() else 'missing')
-    layers = contract.get('layers')
-    if isinstance(layers, dict):
+    try:
+        # Use the same source/install resolver as the bridge. The Isaac package
+        # is optional for hardware-only recording; absence stays explicit.
+        helper = asset_root / 'scripts' / 'isaac_model_contract.py'
+        if not helper.is_file() and prefix is not None:
+            helper = prefix / 'lib/onrobot_gripper_isaac/isaac_model_contract.py'
+        spec = importlib.util.spec_from_file_location('onrobot_session_assets', helper)
+        resolver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(resolver)
+        repository = resolver.asset_repository_root(asset_root)
+        manifest = resolver.compatible_manifest(repository, asset_root)
+        package = manifest['catalog_packages'][model]
+        entrypoint = contract['asset_entrypoint']
+        layers = {name: digest for name, digest in manifest['files'].items()
+                  if name.startswith(package['directory'] + '/')}
+        identity.update(
+            package_id=package['package_id'],
+            interface_revision=manifest['models'][model]['interface_revision'],
+            asset_manifest_sha256=_sha256(repository / 'asset_manifest.json'),
+            entrypoint_sha256=_sha256(resolver._manifest_path(repository, entrypoint)))
         identity['declared_layer_sha256'] = {
             str(path): str(digest) for path, digest in layers.items()}
         identity['layer_sha256'] = {
-            str(path): (_sha256(asset_root / str(path))
-                        if (asset_root / str(path)).is_file() else 'missing')
-            for path in layers}
+            name: _sha256(resolver._manifest_path(repository, name)) for name in layers}
+        identity['integrity'] = ('matches-manifest' if identity['layer_sha256'] ==
+                                 identity['declared_layer_sha256'] else 'modified')
+    except (OSError, ValueError, RuntimeError, KeyError, TypeError, AttributeError) as error:
+        identity.update(status='unknown', reason=f'asset package unavailable: {error}')
     return identity
 
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>onrobot_gripper_isaac</name>
-<version>1.0.1</version>
+  <version>1.1.0</version>
   <description>Isaac Sim assets, contracts, and runtime validation for OnRobot grippers.</description>
 
   <maintainer email="devsupport@onrobot.com">OnRobot</maintainer>
@@ -27,6 +27,7 @@
 
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>python3-pil</test_depend>
   <test_depend>xacro</test_depend>
 
   <export>

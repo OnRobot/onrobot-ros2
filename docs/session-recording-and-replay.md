@@ -20,7 +20,7 @@ The recorder also stores `qos_profile_overrides.yaml` beside the bag. It uses
 a best-effort, volatile sensor-data subscription for each state topic, which
 keeps filtered `/joint_states` samples when the publisher offers sensor-data
 QoS. This is a recorder-side setting; it does not alter the running driver or
-the command-free replay contract.
+the rule that replay sends no commands.
 
 Stop hardware bringup, then replay without a connected gripper:
 
@@ -30,7 +30,7 @@ ros2 run onrobot_gripper_demos replay_gripper_session \
 ```
 
 Replay uses the recorded ROS clock and opens a read-only RViz layout. It does
-not start `ros2_control` or an actionable control panel. Useful options include
+not start `ros2_control` or a panel that can send commands. Useful options include
 `--rate 0.5`, `--loop`, and `--no-rviz`.
 
 The Force & State History panel plots valid, fresh signed force for 2FG7 and
@@ -38,7 +38,7 @@ The Force & State History panel plots valid, fresh signed force for 2FG7 and
 changes. RG sessions retain state and event history, but command-derived RG
 force is not presented as measured contact force.
 
-For namespace, TF and provenance options, see the
+For options to record the namespace, TF settings and source versions, see the
 [recording reference](../onrobot_gripper_demos/README.md#record-and-replay-a-session).
 For investigating commands or faults, use the separate
 [diagnostic recording guide](../onrobot_gripper_bringup/doc/REPORTING_ISSUES.md);

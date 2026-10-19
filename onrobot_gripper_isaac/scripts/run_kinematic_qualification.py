@@ -208,6 +208,7 @@ class QualificationNode:
                 Parameter('use_sim_time', Parameter.Type.BOOL, True),
             ])
         self.namespace = namespace.strip('/')
+        self.model = model
         self.task_min_m, self.task_max_m = task_limits
         self.physical_min_m, self.physical_max_m = physical_limits
         self.physical_joint = physical_joint

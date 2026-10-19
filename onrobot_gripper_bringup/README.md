@@ -3,7 +3,7 @@
 This package is the model-neutral entry point for the supported parallel
 grippers.
 It selects 2FG7, 2FG14, RG2, or RG6 while preserving the same conventional
-action name and controller contract.
+action name and controller interfaces.
 
 ```bash
 ros2 launch onrobot_gripper_bringup gripper.launch.py \
@@ -24,16 +24,14 @@ ros2 launch onrobot_gripper_bringup gripper.launch.py \
 
 Controller managers, actions, state topics, recovery services, and cleaned
 joint states then remain below the instance namespace. Robot state publisher
-applies the frame prefix to every link frame. A launch test runs two grippers,
-commands distinct apertures through their standard actions, and verifies the
-two prefixed TF trees. For inclusion in one combined robot URDF, use the
-prefix-safe product Xacro macros described by
+applies the frame prefix to every link frame. For inclusion in one combined
+robot URDF, use the product Xacro macros and their `prefix` argument described by
 `onrobot_gripper_description`; `frame_prefix` does not rename URDF joints.
 
 Use `backend:=real` plus the endpoint `host` and `port` for hardware. The fake
 backend is model-aware: conventional commands update the 2FG physical
 `finger_stroke` joint or RG linkage, and 2FG/RG realtime commands update the
-same state/RViz contract. The typed state also retains the separate raw
+same state used by RViz. The typed state also retains the separate raw
 mechanism measurement.
 The control panel waits for backend-published task-aperture limits instead of
 using static model guesses.
@@ -51,7 +49,7 @@ ros2 launch onrobot_gripper_bringup gripper.launch.py \
   baud_rate:=1000000 rtu_parity:=even slave_id:=65
 ```
 
-RTU uses the same hardware and controller contract as TCP. Only one Modbus
+RTU uses the same hardware and controller interfaces as TCP. Only one Modbus
 master should use a serial bus at a time.
 See [USB / Modbus RTU setup](doc/USB_RTU.md) for device permissions,
 USB latency settings and a complete realtime launch example.
@@ -59,7 +57,7 @@ For feedback, timing or visualization failures, see
 [Record a useful bug report](doc/REPORTING_ISSUES.md).
 
 Set `start_realtime_controller:=true` for any supported model. It starts the
-resource-claimed controller and leaves the conventional action controller
+realtime controller and leaves the conventional action controller
 inactive. The RViz panel sends realtime task-aperture targets and streams
 velocity while the joystick is held. For RG2/RG6, velocity is mechanism angular
 velocity in rad/s while state retains compensated task aperture in metres and
@@ -99,13 +97,13 @@ health counters on the target host.
 
 The 2FG `supply_power_w` argument defaults to 48 W. The hardware session writes
 and confirms this value after every connection and reconnect because the
-firmware resets the setting to 14 W at power-up. Select a value from 14 to
-48 W to impose a lower installation budget. Set it to zero only to preserve a
+firmware resets the setting to 14 W at power-up. Select a value in the range
+14-48 W to impose a lower installation budget. Set it to zero only to preserve a
 value managed outside this driver. The setting limits force holding, not the
 realtime travel-speed command.
 
 Every control launch also activates `gripper_state_broadcaster`. It publishes
-the same model-neutral `onrobot_gripper_msgs/msg/GripperState` contract on
+the same `onrobot_gripper_msgs/msg/GripperState` message type on
 `/gripper_state_broadcaster/state` in conventional and realtime modes, plus a
 standard `diagnostic_msgs/msg/DiagnosticArray` entry on `/diagnostics`.
 Task-aperture, mechanism, velocity, and force values have independent validity
@@ -114,13 +112,13 @@ The message identifies the configured standard finger profile and mapping
 source. Firmware is reported as unavailable when the device interface does not
 provide firmware identity.
 
-Transient invalid samples and reconnect periods no longer deactivate the
-hardware component. The session worker retains ownership of retry/fault policy,
+Transient invalid samples and reconnect periods do not deactivate the
+hardware component. The session worker handles retries and faults,
 while the state broadcaster remains active so connection state, sample age,
 counters, reconnect count, and fault codes stay observable. A latched session
 fault never clears merely because Stop was requested: recovery reconnects and
 validates product identity on the worker, remains faulted on failure, and
-returns active-idle without replaying the previous command on success.
+returns ready for new commands without repeating the previous command on success.
 For visualization, the hardware adapter may hold the last finite physical finger pose
 while a transient sample is invalid; its validity flags and unavailable values
 remain explicit, and a reset or device fault clears that pose. This does not
@@ -143,8 +141,8 @@ to observe admission and completion. The typed state reports
 automatically. After correcting the cause, submit a new request if the device
 is still faulted; the previous command is not replayed. Inactive calls are rejected.
 An unresolved request is retained across deactivation/reactivation, and
-cleanup/unload is refused until it reaches a terminal result. See the
-[state and recovery guide](../docs/state-diagnostics-and-recovery.md) for the
+cleanup/unload is refused until it has a final result. See the
+[state and recovery guide](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/state-diagnostics-and-recovery.md) for the
 full behavior and RG safety conditions.
 
 The fake backend supports deterministic test-only motion rate and stall
@@ -154,7 +152,7 @@ and contact-stall outcomes using normal ROS action semantics.
 ## Isaac Sim backend
 
 The Isaac backend supports the versioned 2FG7, 2FG14, RG2, and RG6 assets
-through the same ROS contract. Select the model whose USD bridge is running:
+through the same ROS interfaces. Select the model whose USD bridge is running:
 
 ```bash
 ros2 launch onrobot_gripper_bringup gripper.launch.py \

@@ -6,10 +6,10 @@ class QWidget;
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// Apply the shared OnRobot typography and restrained control-panel palette.
+/// Apply the shared OnRobot fonts and panel colors.
 void applyOnRobotPanelStyle(QWidget *panel);
 
-/// Build a compact brand header using the approved, embedded OnRobot logo.
+/// Create a panel header with the embedded OnRobot logo.
 QWidget *createOnRobotPanelHeader(QWidget *parent, const QString &title,
                                   const QString &subtitle,
                                   int logo_width = 150);

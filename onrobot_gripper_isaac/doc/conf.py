@@ -21,16 +21,27 @@ exclude_patterns = [
 
 
 def _resolve_panel_reference(app, doctree):
-    """Translate the repository link to the sibling rosdoc2 package page."""
+    """Resolve links to pages outside this package's rosdoc2 project."""
     from docutils import nodes
     from sphinx import addnodes
 
-    target = '../../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip'
+    targets = {
+        '../../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip':
+            '../onrobot_gripper_rviz_plugins/standard_docs/README.html#fg-closing-force-grip',
+    }
+    # Repository guides are not installed as pages of this ROS package.
+    public_docs = 'https://github.com/OnRobot/onrobot-ros2/blob/main/docs/'
+    for page in (
+        'supported-devices.md',
+        'state-diagnostics-and-recovery.md',
+        'reference/messages.md#realtimecommand',
+    ):
+        targets['../../docs/' + page] = public_docs + page
     for node in doctree.findall(addnodes.pending_xref):
-        if node.get('reftarget') == target:
+        target = targets.get(node.get('reftarget'))
+        if target:
             node.replace_self(nodes.reference(
-                '', '', *node.children,
-                refuri='../onrobot_gripper_rviz_plugins/standard_docs/README.html#fg-closing-force-grip'))
+                '', '', *node.children, refuri=target))
 
 
 def setup(app):

@@ -22,33 +22,71 @@ namespace onrobot_gripper_hardware {
 
 /// @brief ros2_control adapter for conventional and realtime RG2/RG6 commands.
 ///
-/// `grip_stroke` is the measured fingertip-compensated aperture in metres and
-/// is the only actuator command coordinate. The optional `finger_joint` is a
-/// derived, state-only URDF linkage coordinate for visualization. A dedicated
-/// worker remains the sole owner of blocking Modbus operations.
+/// `grip_stroke` reports the opening at the fingertips in metres, including
+/// fingertip offset, and receives motion commands. The optional `finger_joint`
+/// reports the calculated URDF linkage angle for visualization and accepts no
+/// commands. A dedicated worker handles all blocking device communication.
 class OnRobotRgSystem final : public hardware_interface::SystemInterface {
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(OnRobotRgSystem)
 
   ~OnRobotRgSystem() override;
+  /// @brief Validate the RG model, hardware parameters and joint declarations.
+  ///
+  /// Reads the supplied hardware description without connecting to the device.
+  /// Returns ERROR for an unsupported model or invalid configuration.
   hardware_interface::CallbackReturn
   on_init(const hardware_interface::HardwareComponentInterfaceParams &i_params)
       override;
+  /// @brief Expose aperture, mechanism angle, visual joint and device state.
+  ///
+  /// Aperture uses metres and angles use radians. Visual joint mapping does not
+  /// change the raw mechanism feedback. Consumers must check validity flags.
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() override;
+  /// @brief Expose shared RG motion, Stop and recovery command handles.
+  ///
+  /// Only configured optional interfaces are exported. Shared handles allow an
+  /// action cancellation to pass Stop while the controller owns the joint.
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override;
+  /// @brief Connect the Tool API session and check the initial RG state.
+  ///
+  /// Applies the configured motion limits and communication timing. This
+  /// lifecycle call performs device communication. Returns ERROR for pending
+  /// recovery, connection failure or invalid state.
   hardware_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &) override;
+  /// @brief Activate the session and initialize targets from measured aperture.
+  ///
+  /// Requires a configured session and no pending recovery. Returns ERROR if
+  /// activation or the initial state check fails. Earlier targets are not sent
+  /// again.
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Request Stop and shut down the session worker.
+  ///
+  /// Waits for worker shutdown and retains any recovery result. Returns ERROR
+  /// if a pending recovery result cannot be read and finalized.
   hardware_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Copy RG feedback into ROS state and calculate visual joint
+  /// positions.
+  ///
+  /// Reads the cached session snapshot without device I/O. Returns ERROR if no
+  /// session exists. Check validity flags before using individual
+  /// measurements.
   hardware_interface::return_type read(const rclcpp::Time &,
                                        const rclcpp::Duration &) override;
+  /// @brief Queue RG motion, Stop or recovery through the Tool API session.
+  ///
+  /// Does not wait for the command lock or perform device I/O. A busy lock
+  /// defers work. An OK return does not confirm device acceptance or completed
+  /// motion; inspect the state interfaces.
   hardware_interface::return_type write(const rclcpp::Time &,
                                         const rclcpp::Duration &) override;
 
+  /// @cond INTERNAL
 private:
   onrobot_gripper_msgs::recovery::State recovery_state_;
   bool recovery_lifecycle_active_{false};
@@ -153,6 +191,7 @@ private:
   double m_lastSentPositionM{0.0};
   double m_lastSentEffortN{0.0};
   bool m_commandSent{false};
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_hardware

@@ -1,7 +1,7 @@
 # OnRobot 3FG15 ROS 2 package
 
 URDF/Xacro, meshes, and native external-diameter control for the
-OnRobot 3FG15. The ROS control path is available for evaluation only.
+OnRobot 3FG15. The ROS control is available for evaluation only.
 
 To connect to a gripper and use the RViz Open/Close controls, follow the
 workspace Getting Started guide or run:
@@ -28,5 +28,4 @@ The package includes `simplemesh_onrobot_3fg15.urdf.xacro` and
 `realmesh_onrobot_3fg15.urdf.xacro`.
 
 The fingertips contain Gazebo contact parameters. These are simulation inputs,
-not guaranteed gripping-performance values; users should tune them for their
-payload, surface condition, and simulator.
+not guaranteed gripping-performance values; check and adjust them for your payload, surface condition, and simulator.

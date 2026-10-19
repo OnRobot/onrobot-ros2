@@ -7,12 +7,13 @@ namespace onrobot_gripper_hardware {
 
 // Command and state interfaces expose sequence identifiers as doubles. Only
 // integers through 2^53-1 survive that representation exactly.
-// conventional_command_sequence is a manager-thread admission handshake:
-// +token remains pending (including contention), NaN means admitted, -token
-// means rejected/retired and fences retained outputs until a new positive event.
-// Stop retires every earlier event; a replacement must be exported after Stop
-// is consumed. Reading NaN alone is not an acknowledgement without a pending goal.
-// Stop/recovery sequences retain their positive-only event contract.
+// The manager thread uses conventional_command_sequence to track command
+// acceptance. +token means pending, including when a lock is unavailable.
+// NaN means accepted. -token means rejected or no longer active and blocks stored
+// motion outputs until a new positive token arrives. Stop cancels all earlier
+// tokens; a replacement must be written after the backend processes Stop.
+// Reading NaN alone is not an acknowledgement unless a goal is pending.
+// Stop and recovery sequences only use positive tokens.
 constexpr double kMaximumExactCommandSequence = 9007199254740991.0;
 
 inline bool decodeCommandSequence(const double value, std::uint64_t &sequence) {

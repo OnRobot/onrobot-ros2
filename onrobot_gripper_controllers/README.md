@@ -26,22 +26,24 @@ targets. Motion messages need a nonzero `header.stamp` from the controller's
 ROS clock and are checked for source freshness both when received and before
 first application. A command received while inactive, or before activation,
 cannot be reused after activation; the first active update is Stop. A
-nonblocking handoff contention is not treated as a timeout, and an explicit
-Stop is kept in an independent ordering fence so a coalesced motion cannot
-overwrite it. Use one motion publisher; publisher timestamps do not provide
-operator arbitration. The RViz target action refreshes its target until
+temporary failure to acquire the command lock is not treated as a timeout.
+Stop is stored separately from motion updates so a new motion command cannot
+overwrite it. Use one motion publisher; timestamps do not select which
+operator has control.
+
+The RViz target action refreshes its target until
 measured completion or its bounded timeout. Each accepted conventional action
-goal is treated as new intent even when its position and effort equal the
-previous goal; repeated updates of one goal remain coalesced. Cancellation,
-deactivation and controller switching use explicit Stop and retire earlier
-intent, so an unexecuted goal cannot replay later. A replacement goal stays
-buffered until hardware consumes Stop. If cancellation cannot hand off Stop
+goal is a new command, even when its position and effort equal the previous
+goal. Repeated updates within one goal are combined. Cancellation, deactivation
+and controller switching request Stop and discard earlier motion commands,
+so an unexecuted goal cannot run later. A replacement goal waits until the
+hardware processes Stop. If cancellation cannot pass Stop to the hardware
 immediately, the controller rejects cancellation, aborts the action and retries
 Stop in its update loop. An accepted cancellation confirms the software handoff,
 not that physical motion has already stopped; check device feedback.
 
 The conventional controller requires the configured `max_effort_interface`
-on its task joint. It waits for backend command admission before reporting
+on its task joint. It waits for the backend to accept the command before reporting
 completion. A rejected force or aperture request aborts the action and requests
 Stop; `allow_stalling` does not turn rejection into a successful grasp. Correct
 the request and send a new goal. Reported action effort is the requested target,
@@ -61,7 +63,7 @@ target and a signed approach velocity. The session checks the firmware and
 model force range before admission. On 2FG7 firmware 1.0.34 or newer,
 headless clients may also request zero or subminimum force: opening ignores
 force, while closing uses at least 30 N. Zero force is not Stop; negative
-force targets are rejected. Follow the [realtime panel instructions](../onrobot_gripper_rviz_plugins/README.md)
+force targets are rejected. Follow the [realtime panel instructions](https://github.com/OnRobot/onrobot-ros2/blob/main/onrobot_gripper_rviz_plugins/README.md)
 for grip, release and Stop; the typed state advertises backend availability.
 
 The diagnostic status uses the standard `diagnostic_msgs/msg/DiagnosticArray`
@@ -77,13 +79,15 @@ For 2FG7/2FG14, `command.velocity` is an optional maximum aperture speed, in
 m/s. The controller selects the native speed using an estimated full-travel
 peak at the requested force.
 
-Supply one finite positive value, or leave the array empty to use
-`conventional_speed_percent`. Bounds above the modeled peak select 100%;
-bounds below the modeled minimum select 1%, with a warning that the speed may
-exceed the request. Conversion uses the faster of opening and closing.
+Supply one value greater than zero, with no NaN or infinity, or leave the array
+empty to use `conventional_speed_percent`. A speed above the estimated peak
+selects 100%. A speed below the estimated minimum selects 1%, with a warning
+that the speed may exceed the request. Conversion uses the higher estimated
+peak from opening and closing.
 It uses positive `command.effort`, `max_effort` if
-omitted, or `default_force_n` for explicit zero effort. Fresh live force and
-motor context is required; a context change before dispatch aborts the goal.
+omitted, or `default_force_n` for explicit zero effort. The conversion requires
+current force limits and the connected device's calibration. If these change
+before the command is sent, the goal is aborted.
 RG/3FG and controllers without conventional-speed support reject nonempty
 velocity arrays.
 
@@ -102,12 +106,10 @@ RG safety-switch status is published in the typed gripper state and in
 `/diagnostics`. The `safety_status_valid` field distinguishes unavailable data
 from an all-clear state. Once the physical switch is released and the work area
 is clear, `~/recover` requests an explicit Stop/recovery transition. A safety
-DC error requires a physical power cycle of the gripper. The released firmware
-does not expose an operational Modbus reboot command; its firmware-update reset
-mechanism is not a recovery interface and is intentionally not used by this
-controller. A successful service response confirms that a request was queued,
+DC error requires a physical power cycle of the gripper. A successful service
+response confirms that a request was queued,
 not that hardware admitted or completed recovery. See the
-[state and recovery guide](../docs/state-diagnostics-and-recovery.md) for the
+[state and recovery guide](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/state-diagnostics-and-recovery.md) for the
 result, inactive-call, and controller-reload behavior. ROS reporting is
 supplementary and is not a safety-rated stopping function.
 

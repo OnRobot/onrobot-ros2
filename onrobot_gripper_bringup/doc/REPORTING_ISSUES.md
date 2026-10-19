@@ -80,7 +80,7 @@ ros2 bag record --storage mcap --output "$ONROBOT_REPORT/bag" \
 
 If the API was installed from source rather than DEBs, `api-packages.txt` may
 report missing packages. Include the API installation prefix, build/revision
-and matching header/library identity instead. A missing inactive controller's
+and the build identifiers for the headers and library instead. A missing inactive controller's
 parameters are also useful context, not a reason to abandon the capture.
 
 Wait until the recorder subscribes to the live state topics. Some listed topics
@@ -89,8 +89,8 @@ action traffic may be absent in realtime mode. Recording uses each publisher's
 offered QoS. If a required state topic is missing or a QoS warning appears, save
 `ros2 topic info -v TOPIC` and the warning; do not report that topic as captured.
 
-Record 5–10 seconds of normal state, the incident if safe to reproduce, and
-5–10 seconds afterward. Note the UTC time and the exact button/target/speed
+Record 5-10 seconds of normal state, the incident if safe to reproduce, and
+5-10 seconds afterward. Note the UTC time and the exact button/target/speed
 used. Press **Ctrl+C in the recorder terminal** and wait for it to finish before
 closing the driver. This stops recording, not hardware motion. Use the normal
 Stop or independent stop for the equipment.
@@ -146,8 +146,8 @@ For a force spike or NaN fault, retain the unfiltered numeric values. State
 validity, fault/status information and timestamps distinguish an actual device
 reading from stale or invalid data. Negative closing force is the current 2FG
 convention; do not flip its sign, clip it to the command limit, or replace it
-with a held value before sharing. `TF_NAN_INPUT` proves invalid transform input,
-but does not by itself prove that RViz crashed or identify the device-side trigger.
+with a held value before sharing. `TF_NAN_INPUT` means a transform contained an invalid value. It does not by itself show
+that RViz crashed or explain what caused the invalid value.
 
 ## 4. Share privately and inspect without motion
 

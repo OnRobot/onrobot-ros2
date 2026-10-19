@@ -34,17 +34,16 @@ namespace onrobot_gripper_rviz_plugins {
 /// @brief Format measured gripper state without presenting invalid force data.
 QString formatMeasuredGripperState(double i_positionM, double i_effortN);
 
-/// @brief Compact RViz panel for showcasing the standard gripper action.
+/// @brief RViz controls for the standard gripper action.
 ///
-/// The panel deliberately speaks only the standard
-/// control_msgs/action/ParallelGripperCommand action and subscribes to the
-/// joint-state broadcaster. It does not access Modbus or the driver internals,
-/// so the same visual demo can be used with physical, fake, or supported
-/// simulation backends.
+/// Sends control_msgs/action/ParallelGripperCommand goals and reads gripper
+/// joint states. It communicates through ROS interfaces and works with real,
+/// fake and supported simulation backends.
 class GripperControlPanel final : public rviz_common::Panel {
   Q_OBJECT
 
 public:
+  /// @cond INTERNAL
   explicit GripperControlPanel(QWidget *i_parent = nullptr);
   ~GripperControlPanel() override;
 
@@ -58,10 +57,9 @@ private:
   using GetParameters = rcl_interfaces::srv::GetParameters;
   using GetParametersClient = rclcpp::Client<GetParameters>;
 
-  // ROS callbacks execute on RViz's executor thread while the panel widgets
-  // belong to the Qt GUI thread.  Keeping the latest sample in this small
-  // callback-owned state object lets the GUI poll it safely, and means that a
-  // late ROS callback never has to dereference a QWidget during RViz shutdown.
+  // ROS callbacks run on RViz's executor thread; widgets belong to the Qt GUI
+  // thread. Callbacks store the latest sample here for the GUI to read. This
+  // also lets a late callback finish without accessing a QWidget during shutdown.
   struct SharedState {
     std::atomic<double> measured_position{0.0};
     std::atomic<double> measured_effort{
@@ -78,6 +76,7 @@ private:
     std::atomic<bool> safety_2_pushed{false};
     std::atomic<bool> safety_2_triggered{false};
     std::atomic<bool> safety_dc_error{false};
+    std::atomic<bool> faulted{false};
     std::atomic<bool> speed_control_available{false};
     std::atomic<bool> speed_read_in_flight{false};
     std::atomic<int> speed_model{0};
@@ -147,6 +146,7 @@ private:
   QGroupBox *m_speedGroup{nullptr};
   QDoubleSpinBox *m_speedSpinBox{nullptr};
   QLabel *m_speedStatusLabel{nullptr};
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_rviz_plugins

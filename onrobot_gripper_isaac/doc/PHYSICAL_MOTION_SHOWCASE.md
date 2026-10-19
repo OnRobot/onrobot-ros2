@@ -14,7 +14,7 @@ workpiece, materials, and motion, not to every application.
 ## Pick a workpiece from a table
 
 For a downward-facing grasp followed by pendulum motion, use the table-pickup
-example. It needs Isaac Sim 6.0.1, but no ROS nodes, robot, or real gripper.
+example. It needs Isaac Sim 6.1.0, but no ROS nodes, robot, or real gripper.
 The default rigid cube is 62 mm on each side and weighs 0.712 kg.
 
 From a built and sourced workspace:
@@ -41,10 +41,10 @@ throughout; it is not attached, teleported between cycles, or replayed. Use
 
 The example records friction, drive ceilings, solver settings, contact forces,
 measured motion, slip, placement error, and asset/source hashes. The cube uses
-static friction 0.6, dynamic friction 0.5, and average combining. Fingertips
+static friction 0.6, dynamic friction 0.5, and the PhysX average friction combine rule. Fingertips
 retain their asset materials, whose effective bindings are recorded separately.
-These are explicit material assumptions, not measured coefficients or a payload
-rating. `--effort-fraction 0.02` provides an intentionally weak-grip comparison;
+These friction values are assumptions for the example. They are not measured
+coefficients and do not establish a payload rating. `--effort-fraction 0.02` provides an intentionally weak-grip comparison;
 expect its report to fail. A successful normal run must report `passed` for
 every cycle and visibly return the cube to its starting location.
 Before approaching, a supported-weight check verifies the contact observer's
@@ -68,15 +68,14 @@ physics timestep. Keep all other settings fixed when comparing results.
 ### Contact and drive settings
 
 The examples use TGS with external forces applied at every position iteration
-(`physxScene:enableExternalForcesEveryIteration = true`). This scene-level
-setting reduces loaded-contact drift; it does not increase friction or grip
-effort. Configure it on your own `PhysicsScene` when composing an application.
+(`physxScene:enableExternalForcesEveryIteration = true`). This scene setting reduces contact drift while holding a load; it does not increase friction or grip
+effort. Configure it on your own `PhysicsScene` when building your scene.
 The workpiece runner records its effective value under `solver`; use
 `--no-external-forces-every-iteration` only for a controlled comparison. The
 default timestep is 1/480 s; repeat demanding contact cases at 1/960 s.
 
 The supplied fingertips use static friction 0.6 and dynamic friction 0.5 with
-average combining. This is a dry rubber/metal reference assumption. Surface
+the PhysX average friction combine rule. This is a dry rubber/metal reference assumption. Surface
 finish, contamination and a different workpiece can change the real coefficient.
 
 | Model | Driven coordinate | Stiffness, SI | Damping, SI | Drive ceiling | Primary-joint armature |
@@ -96,8 +95,8 @@ individually measured motor inertias; gearbox friction, compliance and controlle
 behavior are not fully identified. RG6 damping uses the corresponding critical
 damping estimate; RG2 damping also matches bounded unloaded response timing.
 
-The 2FG armatures are provisional joint-space conditioning assumptions, not
-measured rotor inertias. The 2FG14 value scales the 2FG7 assumption by the
+The 2FG armature values add inertia at the joints to stabilize the simulation.
+They are provisional and are not measured rotor inertias. The 2FG14 value scales the 2FG7 assumption by the
 squared firmware gear-ratio difference. Matched damping approximates
 `2 sqrt(stiffness × armature)`; adding armature without damping causes free-motion
 oscillation. Neither this servo model nor its fast bare-joint response models
@@ -108,7 +107,7 @@ measured grip force. A position drive below that limit depends on its gains,
 position error and velocity. Opposing pad normals, their sum, and the drive
 effort are different quantities. These settings must not be interpreted as a
 calibrated mapping from a hardware force command to contact force. The report
-records the composed settings actually used by the simulation.
+records the settings actually used after all USD layers have been applied.
 
 Following a real gripper's measured position in a shadow scene does not by
 itself reproduce its grip force. Contact geometry and position error can differ
@@ -188,16 +187,16 @@ root explicitly:
 ```bash
 ros2 run onrobot_gripper_isaac validate_physical_motion_results.py \
   --results-dir "$ISAAC_RESULTS" \
-  --isaac-version 6.0.1 \
+  --isaac-version 6.1.0 \
   --require-screenshots \
   --require-recording \
   --report-root "/path/to/original/physical-motion-run"
 ```
 
-The mapping resolves only paths below the supplied original root into the
-local result directory. Traversal, missing files, and symlink escapes fail the
-validation. Validation writes a separate verdict and never changes the
-evidence reports.
+The mapping only accepts paths inside the supplied original directory.
+Validation fails if a file is missing or if a path or symlink leads outside
+that directory. It writes a separate result and leaves the original reports
+unchanged.
 
 Use a new output directory for each recorded run. A run stops instead of
 mixing new frames with an existing sequence.
@@ -211,7 +210,7 @@ export ISAAC_PACKAGE_PREFIX="$(ros2 pkg prefix onrobot_gripper_isaac)"
 "$ISAAC_SIM_DIR/python.sh" \
   "$ISAAC_PACKAGE_PREFIX/lib/onrobot_gripper_isaac/run_physical_motion_showcase.py" \
   --model "$MODEL" \
-  --asset "$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/$MODEL/onrobot_$MODEL.usda" \
+  --asset "$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_${MODEL}/simready_usd/onrobot_${MODEL}.usda" \
   --config "$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/config/payload_retention_profiles.json" \
   --output "$ISAAC_RESULTS/${MODEL}.json" \
   --screenshot-dir "$ISAAC_RESULTS/${MODEL}-keyframes" \
@@ -235,7 +234,7 @@ ffmpeg -y -framerate 30 \
 
 ## Verify source changes without a stale install
 
-During asset or harness development, run the synchronized package source
+When changing assets or test scripts, run the synchronized package source
 directly:
 
 ```bash

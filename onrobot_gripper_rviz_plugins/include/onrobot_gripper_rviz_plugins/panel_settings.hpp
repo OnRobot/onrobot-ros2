@@ -7,11 +7,11 @@
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// Settings stored below one RViz panel entry.
+/// @cond INTERNAL
+/// Settings saved for one RViz panel.
 ///
-/// RViz creates all panels against one raw ROS node.  Values in this object
-/// are therefore deliberately panel-local: they are loaded from and saved to
-/// that panel's Config entry instead of being used as shared ROS parameters.
+/// RViz panels share a ROS node. Each panel loads and saves these values in its
+/// own Config entry so changing one panel does not change another panel's settings.
 class PanelSettings {
 public:
   void load(const rviz_common::Config &i_config);
@@ -26,9 +26,10 @@ public:
 private:
   rviz_common::Config m_values;
 };
+/// @endcond
 
-/// Read a launch/node default without redeclaring an existing shared-node
-/// parameter.  A panel Config value should be preferred before calling this.
+/// Read a default from the shared ROS node without redeclaring a parameter
+/// that already exists. Use the panel's saved Config value first, if available.
 template <typename T>
 T readOrDeclare(const rclcpp::Node::SharedPtr &i_node,
                 const std::string &i_name, const T &i_fallback) {

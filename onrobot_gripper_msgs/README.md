@@ -11,8 +11,8 @@ joint state and gripper actions cannot express the complete device state.
 - `RealtimeCommand` carries semantic position, velocity, and force commands.
 - `RealtimeState` reports the active realtime mode, independently valid task
   and mechanism observations, and session counters.
-- `RecoveryState` reports request ownership, backend admission and the retained
-  terminal result. See [state and recovery](../docs/state-diagnostics-and-recovery.md)
+- `RecoveryState` identifies each recovery request, whether the backend accepted
+  it, and its final result. See [state and recovery](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/state-diagnostics-and-recovery.md)
   for request matching and validity rules.
 
 All linear quantities use metres and metres per second. Angular quantities use
@@ -38,8 +38,8 @@ stream, and the broadcaster's `diagnostics_topic` parameter can select another
 remappable name.
 
 The array contains connection, fault, safety, freshness, and health-counter
-keys plus the available device telemetry for the selected model. Values
-are named with their units where the unit is part of the public contract, for
+keys plus the available device readings for the selected model. Some value
+names include their units, for
 example `diagnostic_external_width_mm`,
 `diagnostic_realtime_linear_velocity`, or `diagnostic_temperature`. Missing or
 unsupported measurements are omitted from the diagnostic array and are

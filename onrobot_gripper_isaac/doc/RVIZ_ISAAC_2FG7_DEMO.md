@@ -6,9 +6,9 @@ the real gripper through `ros2_control`; both visualizations follow measured
 hardware state. Isaac Sim is a read-only shadow in this demonstration and
 does not open a second connection to the gripper.
 
-The included Isaac Sim test results were produced with Isaac Sim 6.0.1. Use a
-2FG7 with a firmware revision qualified by the Tool API and the current
-realtime command map.
+Use Isaac Sim 6.1 for this demo. Start from a
+2FG7 running a compatible firmware version. See
+[supported devices](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/supported-devices.md).
 
 ## Prepare
 
@@ -28,7 +28,7 @@ Set the local paths once in the Isaac Sim terminal:
 ```bash
 export ISAAC_SIM_DIR=/path/to/isaacsim
 export ISAAC_PACKAGE_PREFIX="$(ros2 pkg prefix onrobot_gripper_isaac)"
-export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/2fg7/onrobot_2fg7.usda"
+export ISAAC_ASSET="$ISAAC_PACKAGE_PREFIX/share/onrobot_gripper_isaac/assets/onrobot_2fg7/simready_usd/onrobot_2fg7.usda"
 export ISAAC_HIL_RUNNER="$ISAAC_PACKAGE_PREFIX/lib/onrobot_gripper_isaac/run_hardware_in_loop.py"
 ```
 
@@ -91,7 +91,7 @@ velocity, hold the joystick toward **OPEN** or **CLOSE**, and release it to
 request Stop. The panel continuously refreshes the command while held. Use
 **Center / stop** to request Stop explicitly and let the shadow runner finish.
 
-The hardware backend also provides [2FG closing-force controls](../../onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip).
+The hardware backend also provides [2FG closing-force controls](https://github.com/OnRobot/onrobot-ros2/blob/main/onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip).
 This demonstration shadows measured position; it does not forward regulated
 force to the Isaac joint bridge.
 
@@ -106,6 +106,7 @@ force to the Isaac joint bridge.
   `control_msgs/action/ParallelGripperCommand` action; realtime control uses
   the typed OnRobot command and explicit Stop interfaces.
 
-This demonstrates control integration and measured kinematic agreement. It
+This checks that ROS controls the gripper and that the simulated joints
+follow its measured motion. It
 does not claim calibrated simulated force, payload performance, or validated
 behavior for arbitrary user-authored fingers.

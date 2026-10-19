@@ -6,11 +6,12 @@
 
 namespace onrobot_gripper_rviz_plugins {
 
+/// @cond INTERNAL
 /// @brief Convert a centered joystick axis into a safe realtime velocity.
 ///
 /// The UI uses -1 for full left/open and +1 for full right/close.  The
-/// device's positive raw velocity is the opening direction, so the sign is
-/// inverted at this boundary.  A deadband keeps a centered joystick still.
+/// device opens with positive velocity, so the conversion reverses the sign.
+/// A small deadband around the center produces zero velocity.
 class RealtimeJoystickMapper {
 public:
   static constexpr double kDefaultDeadband = 0.05;
@@ -49,7 +50,9 @@ public:
     return (axis < 0.0 ? 1.0 : -1.0) * scaled * i_maximumVelocityMps;
   }
 };
+/// @endcond
 
+/// @cond INTERNAL
 /// @brief Detect measured task motion that contradicts a held velocity command.
 class RealtimeDirectionGuard {
 public:
@@ -115,7 +118,9 @@ private:
   bool has_extremum_{false};
   bool commanded_direction_observed_{false};
 };
+/// @endcond
 
+/// @cond INTERNAL
 /// @brief Require stable, finite task feedback before declaring a target met.
 class RealtimePositionTargetTracker {
 public:
@@ -151,5 +156,6 @@ private:
   double target_m_{0.0};
   std::size_t matching_samples_{0};
 };
+/// @endcond
 
 } // namespace onrobot_gripper_rviz_plugins

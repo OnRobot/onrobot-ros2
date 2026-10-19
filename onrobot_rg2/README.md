@@ -2,7 +2,7 @@
 
 URDF/Xacro, meshes, and model-specific control configuration for
 the OnRobot RG2. Use the workspace Getting Started guide for installation and
-model-neutral bringup.
+starting the driver.
 
 ## Configure the description
 
@@ -16,7 +16,7 @@ control launch uses the detailed model.
 
 ## Control
 
-Use the model-neutral launch for fake or physical control:
+Use the shared launch file for fake or physical control:
 
 ```bash
 ros2 launch onrobot_gripper_demos showcase.launch.py \
@@ -28,15 +28,12 @@ RG state reports measured aperture but not measured gripping force, so
 `/joint_states` omits effort and the conventional panel shows aperture only.
 The configured force limit is still sent with each motion command.
 
-Set `control:=realtime` for compensated task-aperture position
-and mechanism-angular-velocity control. The realtime RViz layout provides
+Set `control:=realtime` to control aperture position or mechanism angular
+velocity. Aperture includes the configured fingertip offset. The realtime RViz layout provides
 Open, Close, target, force-limit, and held-velocity controls.
 
-The supplied Isaac Sim asset has passed articulation, linkage/contact,
-kinematic, read-only shadow, and bounded conventional hardware-in-the-loop
-tests on Isaac Sim 6.0.1. The installed Isaac package contains the repeatable
-RViz, hardware, and simulation workflows and their stated limitations.
+For Isaac Sim setup, motion tests and hardware shadowing, see the
+[Isaac integration guide](https://github.com/OnRobot/onrobot-ros2/blob/main/onrobot_gripper_isaac/README.md).
 
 The fingertips contain Gazebo contact parameters. These are simulation inputs,
-not guaranteed gripping-performance values; users should tune them for their
-payload, surface condition, and simulator.
+not guaranteed gripping-performance values; check and adjust them for your payload, surface condition, and simulator.

@@ -25,41 +25,81 @@ namespace onrobot_gripper_hardware {
 
 /// @brief Standard ros2_control hardware adapter for one OnRobot 2FG gripper.
 ///
-/// `grip_stroke` is the finger-profile task aperture. The state-only
-/// `finger_stroke` is the physical one-jaw articulation used by URDF and USD;
-/// its measured-position interfaces retain the invariant total raw mechanism
-/// stroke. Device I/O and mode ownership live in ParallelGripperSession.
+/// `grip_stroke` is the opening at the fingers for the configured finger profile.
+/// The position of `finger_stroke` is one finger's travel for URDF and USD
+/// visualization; this joint only reports state. Its separate measured-position
+/// interfaces report the total raw mechanism stroke, independent of the finger
+/// profile. ParallelGripperSession handles device communication and control modes.
 class OnRobotGripperSystem final : public hardware_interface::SystemInterface {
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(OnRobotGripperSystem)
 
   ~OnRobotGripperSystem() override;
 
+  /// @brief Validate the 2FG model, hardware parameters and joint declarations.
+  ///
+  /// Reads configuration from the supplied hardware description without
+  /// connecting to the device. Returns ERROR for an unsupported model or
+  /// invalid configuration.
   hardware_interface::CallbackReturn
   on_init(const hardware_interface::HardwareComponentInterfaceParams &i_params)
       override;
 
+  /// @brief Expose configured task, physical-joint and device state interfaces.
+  ///
+  /// Task aperture and finger travel use metres. Raw mechanism measurements
+  /// remain separate from the visual finger joint; consumers must check
+  /// validity flags.
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() override;
 
+  /// @brief Expose shared motion, Stop and recovery command handles.
+  ///
+  /// Only configured optional interfaces are exported. Shared handles allow an
+  /// action cancellation to pass Stop while the controller owns the joint.
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override;
 
+  /// @brief Connect the Tool API session and check the initial 2FG state.
+  ///
+  /// Applies transport, cycle timing and supply-power settings. This lifecycle
+  /// call performs device communication. Returns ERROR for pending recovery,
+  /// connection failure or invalid initial state.
   hardware_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &i_previousState) override;
 
+  /// @brief Activate the session and initialize targets from measured position.
+  ///
+  /// Requires a configured session and no pending recovery. Returns ERROR if
+  /// activation or the initial state check fails. Earlier targets are not sent
+  /// again.
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &i_previousState) override;
 
+  /// @brief Request Stop and shut down the session worker.
+  ///
+  /// Waits for worker shutdown and retains any recovery result. Returns ERROR
+  /// if a pending recovery result cannot be read and finalized.
   hardware_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &i_previousState) override;
 
+  /// @brief Copy the session snapshot into ROS state interfaces.
+  ///
+  /// Updates validity, kinematics and recovery state without device I/O in this
+  /// call. Returns ERROR if no session exists. An OK return does not make an
+  /// invalid or stale measurement usable.
   hardware_interface::return_type
   read(const rclcpp::Time &i_time, const rclcpp::Duration &i_period) override;
 
+  /// @brief Queue motion, Stop or recovery through the Tool API session.
+  ///
+  /// Does not wait for the command lock or perform device I/O. A busy lock
+  /// defers work to a later cycle. An OK return does not confirm device
+  /// acceptance or completed motion; inspect the state interfaces.
   hardware_interface::return_type
   write(const rclcpp::Time &i_time, const rclcpp::Duration &i_period) override;
 
+  /// @cond INTERNAL
 private:
   onrobot_gripper_msgs::recovery::State recovery_state_;
   bool recovery_lifecycle_active_{false};
@@ -162,6 +202,7 @@ private:
   bool m_recoveryPending{false};
   bool m_conventionalRecoveryGate{false};
   bool m_stopPending{false};
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_hardware

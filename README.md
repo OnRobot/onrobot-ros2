@@ -12,8 +12,8 @@ MoveIt 2 and Isaac Sim integration through the same ROS workspace.
 
 | Models | Conventional control | Realtime control | Isaac assets |
 |---|---|---|---|
-| 2FG7, 2FG14 | Task-aperture action | Position, velocity, closing-force approaches | Yes |
-| RG2, RG6 | Task-aperture action | Position, mechanism-angular velocity | Yes |
+| 2FG7, 2FG14 | Opening width (aperture) action | Position, velocity, closing-force approaches | Yes |
+| RG2, RG6 | Opening width (aperture) action | Position, mechanism angular velocity | Yes |
 | 3FG15, 3FG25 | External-diameter commands (evaluation only) | No | No |
 
 See [supported devices and backends](docs/supported-devices.md) for the
@@ -21,7 +21,8 @@ capabilities and limits of each path.
 
 ## Install and try without hardware
 
-Download tool api debian packages from [latest release](https://github.com/OnRobot/onrobot-tool-api/releases/latest)
+Download the Tool API Debian packages from the
+[latest release](https://github.com/OnRobot/onrobot-tool-api/releases/latest).
 
 Use Ubuntu 24.04 amd64 and ROS 2 Jazzy. Install the matching Tool API runtime
 and development packages from the supplied DEB directory:

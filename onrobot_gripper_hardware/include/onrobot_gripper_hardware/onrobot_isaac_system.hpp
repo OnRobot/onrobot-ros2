@@ -25,34 +25,70 @@ namespace onrobot_gripper_hardware {
 
 /// ros2_control adapter between OnRobot task coordinates and an Isaac joint.
 ///
-/// The simulator only contains physical articulation DOFs. This adapter keeps
-/// the public OnRobot aperture and raw-mechanism state contract on the ROS side
-/// and maps it to the model's single driven physical DOF in Isaac Sim.
-/// Feedback samples must carry a positive, advancing source timestamp in their
-/// header. Source timestamps order one stream; receipt time separately bounds
-/// freshness, so timestamps from different clocks are never compared.
+/// ROS uses task aperture and raw mechanism feedback. This adapter converts
+/// between those coordinates and the model's single driven joint in Isaac Sim.
+/// Each feedback message must have a header timestamp greater than zero and
+/// later than the previous one. These timestamps determine message order.
+/// Sample age is checked separately using the time when each message arrived,
+/// so clocks from different systems are not compared.
 class OnRobotIsaacSystem final : public hardware_interface::SystemInterface {
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(OnRobotIsaacSystem)
 
+  /// @brief Validate model, joints, topics and feedback settings for Isaac.
+  ///
+  /// Reads the supplied hardware description. Returns ERROR for unsupported
+  /// models, invalid settings or incomplete joint interfaces.
   hardware_interface::CallbackReturn
   on_init(const hardware_interface::HardwareComponentInterfaceParams &params)
       override;
+  /// @brief Expose task and physical-joint feedback, validity and fault state.
+  ///
+  /// The joint coordinates depend on the configured model. Unavailable force
+  /// feedback remains invalid.
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() override;
+  /// @brief Expose shared motion, Stop and recovery handles for the Isaac
+  /// backend.
+  ///
+  /// Controllers use the same task interfaces as with a physical gripper.
   std::vector<hardware_interface::CommandInterface::SharedPtr>
   on_export_command_interfaces() override;
+  /// @brief Create the physical-joint command publisher and feedback
+  /// subscription.
+  ///
+  /// Uses the configured command and state topics with reliable QoS. No device
+  /// connection is opened.
   hardware_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &) override;
+  /// @brief Clear exposed feedback and wait for a current state sample.
+  ///
+  /// The next read() checks sample age before enabling motion. Earlier motion
+  /// targets are discarded; activation alone does not establish valid feedback.
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Publish a hold using current feedback, or zero velocity without it.
+  ///
+  /// Disables motion and prevents earlier targets from being reused. Publishing
+  /// a command does not confirm that the simulator has applied it.
   hardware_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Check received joint feedback and map it to task aperture.
+  ///
+  /// Uses a monotonic clock to check time since receipt. Missing startup
+  /// feedback keeps motion disabled. Feedback loss after motion requires
+  /// explicit recovery; check the reported fault and validity fields.
   hardware_interface::return_type read(const rclcpp::Time &,
                                        const rclcpp::Duration &) override;
+  /// @brief Validate commands and publish them to the Isaac joint interface.
+  ///
+  /// Processes Stop and explicit recovery as well as motion. Commands remain
+  /// disabled while required feedback is unavailable. A successful write does
+  /// not confirm completed simulated motion.
   hardware_interface::return_type write(const rclcpp::Time &,
                                         const rclcpp::Duration &) override;
 
+  /// @cond INTERNAL
 private:
   onrobot_gripper_msgs::recovery::State recovery_state_;
   CommandStopGate command_stop_gate_;
@@ -104,6 +140,11 @@ private:
   bool active_{false};
   bool feedback_ready_{false};
   bool feedback_seeded_{false};
+  // Initial scene/render startup may interrupt feedback before any operator
+  // command. After the first admitted motion, loss requires explicit recovery
+  // even if a later Stop or lifecycle transition has made the joint idle.
+  bool motion_command_seen_{false};
+  double startup_hold_position_{std::numeric_limits<double>::quiet_NaN()};
   bool feedback_loss_stop_pending_{false};
   bool feedback_loss_stop_sent_{false};
   bool conventional_recovery_gate_{false};
@@ -172,6 +213,7 @@ private:
   double maximum_task_aperture_state_{0.073};
   std::array<double, onrobot_gripper_msgs::kDiagnosticInterfaceCount>
       diagnostic_states_{};
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_hardware

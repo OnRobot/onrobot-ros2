@@ -17,34 +17,67 @@
 
 namespace onrobot_gripper_hardware {
 
-/// Native ros2_control adapter for diameter-mode 3FG15/3FG25 operation.
-/// The command joint is a physical diameter in metres; the separately exported
-/// `finger_angle` state uses the configured device-to-URDF transform to
-/// animate the actual three-finger URDF joint. Live external diameter limits
-/// are exported as nonstandard state interfaces in metres.
+/// ros2_control adapter for controlling 3FG15 and 3FG25 by diameter.
+/// The command joint uses diameter in metres. The separate `finger_angle`
+/// state converts device feedback to the URDF joint angle for visualization.
+/// Custom state interfaces report the current external diameter limits in metres.
 class OnRobotThreeFingerSystem final
     : public hardware_interface::SystemInterface {
 public:
   RCLCPP_SHARED_PTR_DEFINITIONS(OnRobotThreeFingerSystem)
   ~OnRobotThreeFingerSystem() override;
+  /// @brief Validate the 3FG model, joints and hardware parameters.
+  ///
+  /// Reads the supplied hardware description without connecting. Returns ERROR
+  /// for unsupported models or invalid configuration. 3FG support is for
+  /// evaluation.
   hardware_interface::CallbackReturn
   on_init(const hardware_interface::HardwareComponentInterfaceParams &params)
       override;
+  /// @brief Expose diameter, finger angle, validity and device diagnostics.
+  ///
+  /// Diameter uses metres, angle uses radians and the native force value is a
+  /// percentage, not newtons.
   std::vector<hardware_interface::StateInterface>
   export_state_interfaces() override;
+  /// @brief Expose conventional diameter and force-percentage command handles.
+  ///
+  /// These interfaces do not provide realtime control.
   std::vector<hardware_interface::CommandInterface>
   export_command_interfaces() override;
+  /// @brief Connect to the 3FG and check the configured fingertip position.
+  ///
+  /// Returns ERROR on connection or initial-state failure, including a
+  /// fingertip-position mismatch. Unavailable diagnostics produce a warning
+  /// without failing configuration.
   hardware_interface::CallbackReturn
   on_configure(const rclcpp_lifecycle::State &) override;
+  /// @brief Stop earlier motion and start the communication worker.
+  ///
+  /// Reads the current diameter and initializes the target from it. Returns
+  /// ERROR without a configured gripper or if activation communication fails.
   hardware_interface::CallbackReturn
   on_activate(const rclcpp_lifecycle::State &) override;
+  /// @brief Request Stop and join the communication worker.
+  ///
+  /// Waits for worker shutdown before returning.
   hardware_interface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &) override;
+  /// @brief Copy cached worker feedback and diagnostics into ROS state.
+  ///
+  /// Marks unavailable state invalid instead of treating old values as current.
+  /// Device communication runs in the worker.
   hardware_interface::return_type read(const rclcpp::Time &,
                                        const rclcpp::Duration &) override;
+  /// @brief Validate diameter and force-percentage targets and queue new
+  /// commands.
+  ///
+  /// Sends work to the communication worker rather than performing device I/O
+  /// here.
   hardware_interface::return_type write(const rclcpp::Time &,
                                         const rclcpp::Duration &) override;
 
+  /// @cond INTERNAL
 private:
   struct Command {
     double diameter_m{0};
@@ -134,6 +167,7 @@ private:
   State m_state;
   std::atomic_bool m_shutdown{false};
   std::thread m_worker;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_hardware

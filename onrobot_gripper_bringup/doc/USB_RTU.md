@@ -113,9 +113,10 @@ ros2 topic echo --once /diagnostics
 ```
 
 Expect the realtime controller to be active and the conventional controller
-inactive. Observe increasing `successful_cycles` and `sample_sequence`, bounded
-`sample_age` and `last_cycle_duration`, and stable failure, reconnect, watchdog
-and missed-deadline counters during operation. Publication may repeat a
+inactive. Check that `successful_cycles` and `sample_sequence` keep increasing.
+`sample_age` and `last_cycle_duration` should stay within the limits needed
+by your application. Failure, reconnect, watchdog and missed-deadline counters
+should not increase. Publication may repeat a
 device sample: `ros2 topic hz` alone does not measure fresh device data.
 If ROS scheduling requires headroom, 250 Hz controller and publication rates
 can be tried while keeping the device at 200 Hz; repeated samples are expected.

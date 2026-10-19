@@ -9,8 +9,8 @@ inputs.
 
 - Use Ubuntu 24.04 with ROS 2 Jazzy and the repository dependencies installed.
 - Install the matching Tool API runtime and development packages.
-- Use RG2 realtime firmware compatible with integration guide v1.1. The
-  included hardware test result used firmware 1.0.10.
+- Use firmware 1.0.10 or newer, as listed in
+  [supported devices](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/supported-devices.md).
 - Secure the gripper, clear its complete travel, and keep an independent means
   of removing power available.
 - Run only one real ROS bringup process; it owns the Modbus connection.
@@ -46,8 +46,8 @@ ros2 launch onrobot_gripper_demos showcase.launch.py \
 
 Set a conservative angular velocity and hold the joystick toward **OPEN** or
 **CLOSE**. Releasing it requests Stop. RG realtime velocity is the
-finger-independent mechanism angular velocity in rad/s; displayed aperture is
-the compensated finger-dependent task coordinate in metres.
+mechanism angular velocity in rad/s. The displayed aperture is the gap in
+metres after applying the configured fingertip offset.
 
 ## Validate the supplied Isaac asset
 
@@ -57,10 +57,10 @@ After sourcing the built workspace:
 ros2 run onrobot_gripper_isaac validate_asset_contract.py --model rg2
 ```
 
-The result must report `offline_contract` as `passed` and runtime validation as
-`kinematic-automated-passed`. The runtime fields identify the exact asset and
-previous test results represented by the installed contract. Run the commands
-below when you need results for the currently installed files and hardware.
+The result must report `offline_contract` as `passed`. Runtime validation is
+reported as `not-published` because test results are not installed with the
+package. Run the commands below to check the currently installed files and
+connected hardware.
 
 ## Mirror real RG2 motion in Isaac Sim
 
@@ -70,7 +70,7 @@ and asset paths:
 
 ```bash
 export ISAAC_SIM_DIR=/path/to/isaacsim
-export ISAAC_ASSET=/path/to/install/onrobot_gripper_isaac/share/onrobot_gripper_isaac/assets/rg2/onrobot_rg2.usda
+export ISAAC_ASSET=/path/to/install/onrobot_gripper_isaac/share/onrobot_gripper_isaac/assets/onrobot_rg2/simready_usd/onrobot_rg2.usda
 
 "$ISAAC_SIM_DIR/python.sh" \
   /path/to/install/onrobot_gripper_isaac/lib/onrobot_gripper_isaac/run_hardware_in_loop.py \
@@ -81,7 +81,7 @@ export ISAAC_ASSET=/path/to/install/onrobot_gripper_isaac/share/onrobot_gripper_
 The report must pass and record `shadow_mimic_dof_count` as `9`. All finger
 links must remain visually connected. This mode sends no hardware command.
 
-With the swept volume clear, the bounded conventional HIL test is:
+With the full gripper travel clear, the bounded conventional HIL test is:
 
 ```bash
 "$ISAAC_SIM_DIR/python.sh" \
@@ -92,7 +92,7 @@ With the swept volume clear, the bounded conventional HIL test is:
   --output /path/to/results/rg2_conventional_hil.json
 ```
 
-It commands one bounded aperture excursion, verifies the aperture-to-angle
+It changes the aperture by no more than the specified travel, verifies the aperture-to-angle
 mapping and all nine mimic joints after each PhysX step, and restores the
 initial aperture.
 
@@ -107,7 +107,7 @@ ros2 launch onrobot_gripper_bringup gripper.launch.py \
   realtime_update_rate_hz:=50
 ```
 
-With the swept volume clear, run the bounded check headless in a second
+With the full gripper travel clear, run the bounded check headless in a second
 terminal:
 
 ```bash
@@ -120,8 +120,7 @@ terminal:
 ```
 
 For a repeatable timing measurement, do not add `--gui`. A passing result
-requires the motion checks to pass without adverse hardware-health counter
-changes. A run that completes motion but reports missed deadlines identifies a
+requires the motion checks to pass without increases in hardware error or timing counters. A run that completes motion but reports missed deadlines identifies a
 timing problem. Use 50 Hz for this check. Select a higher rate only after the
 target deployment demonstrates stable zero-miss operation at that rate.
 

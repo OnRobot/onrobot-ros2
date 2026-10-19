@@ -21,7 +21,9 @@ def _sha256(path: Path) -> str:
 
 
 def _manifest(asset_root: Path, model: str) -> dict:
-    model_root = asset_root / model
+    model_root = asset_root / f'onrobot_{model}' / 'simready_usd'
+    if not model_root.is_dir():
+        raise FileNotFoundError(f'Model assets are missing: {model_root}')
     return {
         str(path.relative_to(model_root)): _sha256(path)
         for path in sorted(model_root.rglob('*.usd*')) if path.is_file()

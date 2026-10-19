@@ -21,15 +21,16 @@ class QWidget;
 
 namespace onrobot_gripper_rviz_plugins {
 
-/// Read-only force and state timeline for live and rosbag-replayed state.
+/// Read-only force and state history, live or replayed from a rosbag.
 ///
-/// The plot consumes only the typed GripperState topic.  It is deliberately
-/// independent of command/action topics so that opening a bag cannot actuate
-/// a controller or make a requested force look like measured force.
+/// The plot reads only the GripperState topic. It does not send commands, so
+/// replaying state in this panel cannot move a gripper. Force targets are not
+/// displayed as force measurements.
 class ForceHistoryPanel final : public rviz_common::Panel {
   Q_OBJECT
 
 public:
+  /// @cond INTERNAL
   explicit ForceHistoryPanel(QWidget *i_parent = nullptr);
   ~ForceHistoryPanel() override;
 
@@ -67,6 +68,7 @@ private:
   std::string m_gripperStateTopic{"gripper_state_broadcaster/state"};
   double m_maxSampleAgeS{0.25};
   mutable PanelSettings m_panelSettings;
+  /// @endcond
 };
 
 } // namespace onrobot_gripper_rviz_plugins

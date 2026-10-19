@@ -6,8 +6,8 @@ Tool API runtime and development packages, and a ROS 2 Jazzy workspace
 containing this repository.
 
 This release supports **2FG7**, **2FG14**, **RG2**, and **RG6** on Ubuntu 24.04
-amd64. The same entry point exposes the 3FG descriptions and conventional
-diameter-control path for evaluation only. The 3FG path does not include RTU,
+amd64. The same launch file provides 3FG models and conventional diameter
+control for evaluation only. The 3FG launch does not include RTU,
 fake, Isaac, or realtime control.
 
 ## 1. Prepare safely
@@ -159,15 +159,18 @@ The controls use limits reported by the connected device. They do not assume a
 range from the model name. Custom fingers and fingertip mounting can change the
 task-coordinate limits.
 
-## 4a. Optional Isaac path
+<a id="4a-optional-isaac-path"></a>
+
+## 4a. Optional Isaac simulation
 
 After the panel check, validate a standalone Isaac asset with [Run a first
 gripper simulation](onrobot_gripper_isaac/doc/FIRST_ISAAC_SIMULATION.md). For
 optional read-only or bounded HIL, use the [2FG7 HIL guide](onrobot_gripper_isaac/doc/RVIZ_ISAAC_2FG7_DEMO.md)
-or [RG2 HIL guide](onrobot_gripper_isaac/doc/RG2_HIL_GUIDE.md). The
-shadow keeps the real ROS backend as the sole device owner and sends no
-hardware command. Simulator contact behavior is scene-dependent; this does not
-establish calibrated force or payload performance.
+or [RG2 HIL guide](onrobot_gripper_isaac/doc/RG2_HIL_GUIDE.md). In shadow mode,
+Isaac follows the real gripper's reported position. ROS keeps the only device
+connection, and the shadow sends no commands to the hardware. Contact behavior
+depends on the scene; these examples do not establish force accuracy or payload
+capacity for other setups.
 
 ## 5. Use realtime position and velocity control
 
@@ -234,13 +237,11 @@ finger angle in radians. If the displayed aperture does not match the physical
 contact-surface gap, verify the fingertip offset configured in the gripper; do
 not compensate the value again in ROS.
 
-The 2FG7 and 2FG14 realtime position paths use the current realtime command
-map and a firmware revision qualified by the Tool API. Older host and firmware
-revisions are intentionally not supported because the command selectors and
-field order are not compatible. Realtime force feedback follows the device
+The Tool API checks firmware compatibility before allowing realtime control.
+Use firmware at or above the model's supported minimum. Realtime force feedback follows the device
 sign convention: closing is negative and opening is positive, while force
-targets remain positive for a closing grip. Conventional control remains the simplest click-to-position
-path. Do not compensate task feedback with a finger offset: task aperture
+targets remain positive for a closing grip. Conventional control also provides
+Open, Close and Send target buttons. Do not add a finger offset to task feedback: task aperture
 comes from the configured finger profile, while the separate mechanism
 coordinate remains finger-independent. For closing-force grips on compatible
 2FG devices, use the [force-approach controls](onrobot_gripper_rviz_plugins/README.md#2fg-closing-force-grip).
@@ -249,9 +250,9 @@ for your fingers and workpiece before use.
 
 For 2FG hardware, bringup writes `supply_power_w:=48` after every connection
 and reconnect because the firmware setting is not retained across a power
-cycle. This permits the documented force range. Use a lower value from 14 to
-48 W when the installation requires it; use `supply_power_w:=0` only when an
-external commissioning process owns that setting.
+cycle. This permits the documented force range. Use a lower value in the range
+14-48 W when the installation requires it; use `supply_power_w:=0` only when
+another setup tool manages that setting.
 
 ## 6. Stop and recover
 
@@ -262,7 +263,7 @@ motion has an explicit Stop service:
 ros2 service call /realtime_controller/stop std_srvs/srv/Trigger '{}'
 ```
 
-After a latched communication fault, request a reconnect:
+If a communication fault remains active, request a reconnect:
 
 ```bash
 ros2 service call /recovery_controller/recover std_srvs/srv/Trigger '{}'
@@ -293,7 +294,7 @@ publisher and fixed transform.
 The panel refreshes a position command until the target is reached and a
 velocity command only while its joystick is held.
 
-**A connection fault is latched:** clear the workspace, call the recovery
+**A connection fault remains active:** clear the workspace, call the recovery
 service, and wait for live state. Restart bringup if identity validation or
 recovery continues to fail.
 

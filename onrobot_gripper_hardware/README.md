@@ -8,7 +8,7 @@ Applications interact with standard command and state interfaces. The plugin
 owns the ROS-independent tool API session and translates between:
 
 - `grip_stroke`, the finger-dependent task aperture used by the standard
-  parallel-gripper action and MoveIt 2; and
+  parallel-gripper action, including commands from the MoveIt 2 adapter; and
 - the model's physical mechanism coordinate used for feedback and
   visualization.
 
@@ -23,9 +23,9 @@ geometry. Zero aperture places the rubber surfaces in contact, and the
 published aperture limits are bounded by that geometry and the selected joint
 range. Custom fingertips require a matching geometry mapping.
 
-Communication runs in a worker-owned session. The controller-manager update
-loop exchanges bounded command and state images and does not perform Modbus
-I/O. Connection faults remain observable through the semantic state and
+Communication runs in a session on a worker thread. The controller-manager
+update loop exchanges commands and cached state with that thread, without
+performing Modbus I/O. Connection faults remain visible through the gripper state and
 diagnostics broadcasters until recovery succeeds.
 
 Recovery controllers use protocol version 2 state interfaces declared in the
@@ -35,12 +35,12 @@ Custom descriptions must also export the fields named in
 recovery command, acknowledgement and admission interfaces. Physical RG
 backends require valid, clear safety feedback; kinematic simulation does not
 invent physical switch state. Use synchronous hardware/controller updates.
-See [state and recovery](../docs/state-diagnostics-and-recovery.md) for usage.
+See [state and recovery](https://github.com/OnRobot/onrobot-ros2/blob/main/docs/state-diagnostics-and-recovery.md) for usage.
 
-Each physical read makes one nonblocking state handoff. If the session is
-publishing a sample at that instant, the adapter retains the last coherent
+Each physical read tries once to copy the session state without waiting for
+its lock. If the session is publishing a sample at that instant, the adapter keeps the last complete
 measurement and continues to report its increasing `sample_age`; validity and
-sequence values change only when a newer coherent sample is received.
+sequence values change only when a newer complete sample is received.
 During a transient invalid sample, the last finite physical finger pose may
 remain visible in TF. The task position used by action controllers is never
 replaced by a held visualization value. The joint-state filter omits unavailable
@@ -49,12 +49,12 @@ corresponding validity flags remain false, unavailable velocity/force values
 remain unavailable, and a lifecycle reset or explicit device fault clears the
 held pose.
 
-The parallel-gripper plugins also expose a resource-claimed Stop sequence used
-by the conventional action controller. Cancelling or preempting a standard
+The parallel-gripper plugins also expose a Stop command interface used
+exclusively by the active motion controller. Cancelling or replacing a standard
 gripper goal therefore interrupts the device command instead of only changing
-the action status. A separate one-shot conventional-goal event distinguishes
-new action intent from repeated numeric position/effort values. The hardware,
-fake and Isaac adapters consume that event once; a canceled or deactivated
+the action status. A separate event identifies each new conventional goal,
+even if its position and effort match the previous goal. The hardware,
+fake and Isaac adapters process that event once; a canceled or deactivated
 goal is cleared before it can be replayed.
 
 Use the showcase package when you need the public launch interface with RViz:
