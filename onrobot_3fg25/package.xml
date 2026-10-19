@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
     <name>onrobot_3fg25</name>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <description>
 ROS 2 description, model-specific control configuration, and visualization for the OnRobot 3FG25 gripper.
 </description>

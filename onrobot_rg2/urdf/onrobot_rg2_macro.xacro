@@ -321,18 +321,12 @@
         </collision>
       </link>
 
-      <joint name="${prefix}body_joint" type="revolute">
+      <joint name="${prefix}body_joint" type="fixed">
         <origin
           xyz="0 0 0.04734"
           rpy="0 -1.5707963267949 0"/>
         <parent link="${prefix}base_link"/>
         <child link="${prefix}body_link"/>
-        <axis xyz="0 0 1"/>
-        <limit
-          lower="-1.5708"
-          upper="1.5708"
-          effort="0"
-          velocity="0"/>
       </joint>
 
       <!-- ============================================================= -->

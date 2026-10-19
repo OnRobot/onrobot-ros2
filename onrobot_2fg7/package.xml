@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
 <name>onrobot_2fg7</name>
-<version>1.0.4</version>
+<version>1.0.5</version>
 <description>
 ROS 2 description, model-specific control configuration, and visualization for the OnRobot 2FG7 gripper.
 </description>

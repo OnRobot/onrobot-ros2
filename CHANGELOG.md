@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- Fix RG2 and RG6 direct control launches when no namespace is specified ([#7](https://github.com/OnRobot/onrobot-ros2/pull/7)).
+- Export mesh search paths for Gazebo from all six model packages ([#6](https://github.com/OnRobot/onrobot-ros2/pull/6)).
+- Make the body connection fixed in simplified RG2/RG6 descriptions and plain URDFs so MoveIt does not wait for an unavailable body-joint measurement ([#5](https://github.com/OnRobot/onrobot-ros2/issues/5)).
+
+Thanks to [JBeck-SRW](https://github.com/JBeck-SRW) for the reports and contributed fixes.
+
 ## 1.3.0
 
 - Clarify documentation.
