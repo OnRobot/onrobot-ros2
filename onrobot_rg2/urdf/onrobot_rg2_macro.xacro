@@ -891,5 +891,13 @@
         <mu1>0.4</mu1>
         <mu2>0.4</mu2>
       </gazebo>
+
+      <!-- Semantic aperture joint. The visual finger-angle mapping is intentionally
+      not claimed until calibrated; this joint is the ROS command/state API. -->
+      <link name="${prefix}grip_stroke_control_link"/>
+      <joint name="${prefix}grip_stroke" type="prismatic">
+        <parent link="${prefix}base_link"/><child link="${prefix}grip_stroke_control_link"/>
+        <axis xyz="1 0 0"/><limit lower="0" upper="0.110" effort="40" velocity="1"/>
+      </joint>
   </xacro:macro>
 </robot>

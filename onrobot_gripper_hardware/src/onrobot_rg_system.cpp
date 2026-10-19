@@ -115,10 +115,10 @@ hardware_interface::CallbackReturn OnRobotRgSystem::on_init(
   }
   const auto aperture = std::find_if(
       m_info.joints.begin(), m_info.joints.end(),
-      [](const auto &i_joint) { return i_joint.name == "grip_stroke"; });
+      [](const auto &i_joint) { return i_joint.name.ends_with("grip_stroke"); });
   const auto visual = std::find_if(
       m_info.joints.begin(), m_info.joints.end(),
-      [](const auto &i_joint) { return i_joint.name == "finger_joint"; });
+      [](const auto &i_joint) { return i_joint.name.ends_with("finger_joint"); });
   if (aperture == m_info.joints.end() ||
       !hasCommand(*aperture, hardware_interface::HW_IF_POSITION) ||
       !hasState(*aperture, hardware_interface::HW_IF_POSITION)) {
@@ -135,6 +135,7 @@ hardware_interface::CallbackReturn OnRobotRgSystem::on_init(
   m_apertureJointName = aperture->name;
   m_hasEffortCommand = hasCommand(*aperture, hardware_interface::HW_IF_EFFORT);
   m_hasVisualJoint = visual != m_info.joints.end();
+  if (m_hasVisualJoint) { m_visualJointName = visual->name; }
   setNan(m_positionState);
   setNan(m_velocityState);
   setNan(m_fingerAngleState);

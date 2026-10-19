@@ -788,5 +788,13 @@
         <mu1>0.4</mu1>
         <mu2>0.4</mu2>
       </gazebo>
+
+      <!-- Semantic aperture control joint; visual finger-angle calibration remains
+      a separate requirement and is not silently approximated here. -->
+      <link name="${prefix}grip_stroke_control_link"/>
+      <joint name="${prefix}grip_stroke" type="prismatic">
+        <parent link="${prefix}base_link"/><child link="${prefix}grip_stroke_control_link"/>
+        <axis xyz="1 0 0"/><limit lower="0" upper="0.160" effort="120" velocity="1"/>
+      </joint>
   </xacro:macro>
 </robot>
