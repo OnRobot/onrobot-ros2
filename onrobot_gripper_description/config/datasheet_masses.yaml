@@ -1,0 +1,52 @@
+# Datasheet weight of each gripper, with its source, checked against the URDF
+# link masses by scripts/check_datasheet_masses.py.
+#
+# Weights are the gripper alone with its default fingers. The datasheet weights
+# do not include the mounting; the Quick Changer weights are listed under
+# `mounting` and are not added to any gripper total.
+#
+# tolerance_pct: how far the summed URDF link masses may differ from the
+# datasheet weight. 5% covers the rounding of one-decimal datasheet figures.
+
+tolerance_pct: 5
+
+grippers:
+  rg2:
+    mass_kg: 0.78
+    urdf: onrobot_rg2/urdf/onrobot_rg2.urdf
+    source: https://onrobot.com/storage/datasheets/rg2/datasheet_rg2_v1.8_en.pdf
+    quote: "Weight 0.78 [kg]"
+  rg6:
+    mass_kg: 1.25
+    urdf: onrobot_rg6/urdf/onrobot_rg6.urdf
+    source: https://onrobot.com/storage/datasheets/rg6/datasheet_rg6_v2.0_en.pdf
+    quote: "Weight 1.25 [kg]"
+  2fg7:
+    mass_kg: 1.1
+    urdf: onrobot_2fg7/urdf/onrobot_2fg7.urdf
+    source: https://onrobot.com/storage/datasheets/2fg7/datasheet_2fg7_v2.0_en.pdf
+    quote: "Weight 1.1 [kg]"
+  2fg14:
+    mass_kg: 1.5
+    urdf: onrobot_2fg14/urdf/onrobot_2fg14_macro.xacro  # no plain URDF; masses are literals
+    source: https://onrobot.com/storage/datasheets/2fg14/datasheet_2fg14_v1.3_en.pdf
+    quote: "Weight 1.5 [kg]"
+  3fg15:
+    mass_kg: 1.15
+    urdf: onrobot_3fg15/urdf/onrobot_3fg15.urdf
+    source: https://onrobot.com/storage/datasheets/3fg15/datasheet_3fg15_v2.1_en.pdf
+    quote: "Weight 1.15 [kg]"
+  3fg25:
+    mass_kg: 1.6
+    urdf: onrobot_3fg25/urdf/onrobot_3fg25.urdf
+    source: https://onrobot.com/storage/datasheets/3fg25/datasheet_3fg25_v1.3_en.pdf
+    quote: "Weight 1.6 [kg]"
+
+mounting:
+  source: https://onrobot.com/storage/datasheets/quick-changers/datasheet_quick_changers_v2.0_en.pdf
+  mass_kg:
+    quick_changer: 0.06
+    quick_changer_for_io: 0.093
+    dual_quick_changer: 0.41
+    quick_changer_dual_mounting_kit: 0.06
+    quick_changer_tool_side: 0.14
